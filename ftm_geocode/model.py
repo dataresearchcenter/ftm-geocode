@@ -7,7 +7,7 @@ from banal import clean_dict
 from followthemoney import model
 from followthemoney.proxy import E
 from followthemoney.util import make_entity_id
-from normality import collapse_spaces
+from normality import collapse_spaces, normalize
 from pydantic import BaseModel, create_model
 from zavod.parse.addresses import format_line
 
@@ -15,6 +15,7 @@ from .util import clean_country_codes, clean_country_names, get_country_code, ge
 
 
 class GeocodingResult(BaseModel):
+    cache_key: str | None = None
     address_id: str
     canonical_id: str
     original_line: str
@@ -89,12 +90,12 @@ class AddressBase(BaseModel):
     def get_first(self, attr, default: Any | None = None) -> str | None:
         return get_first(getattr(self, attr, None), default)
 
-    def get_id(self) -> str:
-        formatted_line = self.get_formatted_line()
+    def get_id(self) -> str:  # serves as cache key
+        ident = make_entity_id(normalize(self.get_formatted_line()))
         country = self.get_first("country")
         if country:
-            return f"addr-{country.lower()}-{make_entity_id(formatted_line)}"
-        return f"addr-{make_entity_id(formatted_line)}"
+            ident = f"{country.lower()}-{ident}"
+        return f"addr-{ident}"
 
     def to_dict(self) -> dict[str, list[str]]:
         return clean_dict(dict(self))

@@ -38,6 +38,9 @@ During the process, addresses are parsed and normalized and looked up in the
 address cache database before actual geocoding. After geocoding, new addresses
 are added to the cache database.
 
+Address ids will be rewritten based on normalization (`addressEntity` refs are updated on other entities),
+to keep the original ids, add the flag `--no-rewrite-ids`
+
 Geocoders can be set via `GEOCODERS` and default to `nominatim`
 
 ### geocoding just address strings
@@ -109,6 +112,12 @@ Required external is [libpostal](https://github.com/openvenues/pypostal), see in
 Once `libpostal` is installed on your system, you can install:
 
     pip install ftm-geocoder
+
+Verify that this works without errors:
+
+    ftmgeo --help
+
+    echo "Cowley Road, Cambridge, UK" | ftmgeo geocode --input-format=csv --no-header
 
 ## Testing
 

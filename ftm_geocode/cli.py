@@ -17,13 +17,16 @@ cli.add_typer(cli_cache, name="cache")
 def format_line(
     input_file: typer.FileText = typer.Option("-", "-i", help="input file"),
     output_file: typer.FileTextWrite = typer.Option("-", "-o", help="output file"),
+    header: bool = typer.Option(True, help="Input stream has csv header row"),
 ):
-    reader = get_reader(input_file, Formats.csv)
-    writer = get_writer(output_file, Formats.csv)
+    reader = get_reader(input_file, Formats.csv, header=header)
+    writer = csv.writer(output_file)
 
     for address, country, language, *rest in reader:
         address = get_address(address, language=language, country=country)
-        writer([address.get_formatted_line(), ";".join(address.country), *rest])
+        writer.writerow(
+            [address.get_formatted_line(), ";".join(address.country), *rest]
+        )
 
 
 @cli.command()
@@ -36,14 +39,25 @@ def geocode(
         [Geocoders.nominatim.value], "--geocoder", "-g"
     ),
     cache: bool = typer.Option(True, help="Use cache database"),
+    include_raw: bool = typer.Option(
+        False, help="Include geocoder raw response (for csv output only)"
+    ),
+    rewrite_ids: bool = typer.Option(
+        True, help="Rewrite `Address` entity ids to canonized id"
+    ),
+    header: bool = typer.Option(True, help="Input stream has csv header row"),
 ):
-    reader = get_reader(input_file, input_format)
-    writer = get_writer(output_file, output_format)
+    reader = get_reader(input_file, input_format, header=header)
+    writer = get_writer(output_file, output_format, include_raw=include_raw)
 
     if input_format == Formats.ftm:
         for proxy in reader:
             for result in geocode_proxy(
-                geocoder, proxy, use_cache=cache, output_format=output_format
+                geocoder,
+                proxy,
+                use_cache=cache,
+                output_format=output_format,
+                rewrite_ids=rewrite_ids,
             ):
                 writer(result)
 
@@ -58,8 +72,9 @@ def geocode(
 def cache_iterate(
     output_file: typer.FileTextWrite = typer.Option("-", "-o", help="Output file"),
     output_format: Formats = typer.Option(Formats.ftm.value, help="Output format"),
+    include_raw: bool = typer.Option(False, help="Include geocoder raw response"),
 ):
-    writer = get_writer(output_file, output_format)
+    writer = get_writer(output_file, output_format, include_raw=include_raw)
 
     for res in cache.iterate():
         writer(res)

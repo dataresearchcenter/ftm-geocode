@@ -7,6 +7,7 @@ import pycountry
 from banal import ensure_list
 from followthemoney.proxy import EntityProxy
 from followthemoney.types import registry
+from normality import collapse_spaces
 from normality import normalize as _normalize
 
 
@@ -63,7 +64,7 @@ def clean_country_names(values: Iterable[str] | str | None) -> set[str]:
 
 
 def normalize(value: str) -> str:
-    return _unormalize("NFC", value)
+    return _unormalize("NFC", collapse_spaces(value))
 
 
 def normalize_google(value: str) -> str:
@@ -79,10 +80,15 @@ def get_proxy_addresses(proxy: EntityProxy) -> Generator[str, None, None]:
             yield value
 
 
-def apply_address(proxy: EntityProxy, address: EntityProxy) -> EntityProxy:
+def apply_address(
+    proxy: EntityProxy, address: EntityProxy, rewrite_id: bool | None = True
+) -> EntityProxy:
     if proxy.schema.is_a("Address"):
-        proxy.id = address.id
+        if rewrite_id:
+            proxy.id = address.id
+        else:
+            address.id = proxy.id
         return proxy.merge(address)
-    proxy.add("addressEntity", address.id)
+    proxy.add("addressEntity", address.id)  # FIXME delete old reference?
     proxy.add("address", address.caption)
     return proxy

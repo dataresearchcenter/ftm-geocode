@@ -12,7 +12,6 @@ from geopy.adapters import AdapterHTTPError
 from geopy.exc import GeocoderQueryError
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import SERVICE_TO_GEOCODER, get_geocoder_for_service
-from normality import collapse_spaces
 
 from . import settings
 from .cache import cache
@@ -58,11 +57,13 @@ def get_geocoder(geocoder: Geocoders):
 def _geocode(
     geocoder: Geocoders, value: str, **ctx: GeocodingContext
 ) -> GeocodingResult | None:
-    value = collapse_spaces(value)
-    geocoding_value = normalize(value)
+    geocoding_value = value
     if "google" in geocoder.value:
         geocoding_value = normalize_google(value)
-    geocode_ctx = clean_dict(GEOCODER_CTX.get(geocoder)(ctx))
+    geocode_ctx = {}
+    ctx_getter = GEOCODER_CTX.get(geocoder)
+    if ctx_getter is not None:
+        geocode_ctx = ctx_getter(ctx)
     geolocator = get_geocoder(geocoder)
     geocode = RateLimiter(
         geolocator.geocode,
@@ -82,7 +83,7 @@ def _geocode(
         address = Address.from_string(result.address, **ctx)
         result = GeocodingResult(
             address_id=address_id,
-            canonical_id=get_address_id(address),
+            canonical_id=address.get_id(),
             original_line=value,
             result_line=result.address,
             country=address.get_country(),
@@ -104,9 +105,11 @@ def geocode_line(
     **ctx: GeocodingContext,
 ) -> GeocodingResult | None:
 
+    value = normalize(value)
+
     # look in cache
     if use_cache:
-        result = cache.get(value, **ctx)
+        result = cache.get(value)
         if result is not None:
             log.info(f"Cache hit: `{value}`", cache=str(cache))
             return result
@@ -126,6 +129,7 @@ def geocode_proxy(
     proxy: EntityProxy | dict[str, Any],
     use_cache: bool | None = True,
     output_format: Formats | None = Formats.ftm,
+    rewrite_ids: bool | None = True,
 ) -> Generator[EntityProxy | GeocodingResult, None, None]:
     proxy = model.get_proxy(proxy)
     is_address = proxy.schema.is_a("Address")
@@ -139,7 +143,7 @@ def geocode_proxy(
             if result is not None:
                 address = Address.from_result(result)
                 address = address.to_proxy()
-                proxy = apply_address(proxy, address)
+                proxy = apply_address(proxy, address, rewrite_id=rewrite_ids)
                 if is_address:
                     yield proxy
                 else:

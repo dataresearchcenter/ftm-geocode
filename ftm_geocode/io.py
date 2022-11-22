@@ -39,10 +39,12 @@ def write_ftm(output_file: typer.FileTextWrite):
     return _write
 
 
-def read_csv(input_file: typer.FileText) -> Generator[Row, None, None]:
+def read_csv(
+    input_file: typer.FileText, header: bool = True
+) -> Generator[Row, None, None]:
     reader = csv.reader(input_file)
-    # FIXME skip headers
-    next(reader)
+    if header:
+        next(reader)
     for row in reader:
         address, *rest = row
         country, language = None, None
@@ -55,35 +57,36 @@ def read_csv(input_file: typer.FileText) -> Generator[Row, None, None]:
         yield address, country, language, *rest
 
 
-RESULT_CSV_COLUMNS = [
-    k for k in GeocodingResult.__annotations__.keys() if k not in ("ts", "geocoder_raw")
-]
+def write_csv(output_file: typer.FileTextWrite, include_raw: bool | None = False):
+    fieldnames = GeocodingResult.__annotations__.keys()
+    if not include_raw:
+        fieldnames = [
+            f for f in fieldnames if f not in ("ts", "geocoder_raw", "cache_key")
+        ]
 
-
-def write_csv(output_file: typer.FileTextWrite):
-    writer = csv.DictWriter(output_file, fieldnames=RESULT_CSV_COLUMNS)
+    writer = csv.DictWriter(output_file, fieldnames=fieldnames)
     writer.writeheader()
 
     def _write(result: GeocodingResult, *rest):
-        result = {k: v for k, v in result if k in RESULT_CSV_COLUMNS}
+        result = {k: v for k, v in result if k in fieldnames}
         writer.writerow(result)
 
     return _write
 
 
 def get_reader(
-    input_file: typer.FileText, input_format: Formats
+    input_file: typer.FileText, input_format: Formats, **kwargs
 ) -> Literal[read_ftm, read_csv]:
     if input_format == Formats.ftm:
         return read_ftm(input_file)
     if input_format == Formats.csv:
-        return read_csv(input_file)
+        return read_csv(input_file, **kwargs)
 
 
 def get_writer(
-    output_file: typer.FileTextWrite, output_format: Formats
+    output_file: typer.FileTextWrite, output_format: Formats, **kwargs
 ) -> Literal[write_ftm, write_csv]:
     if output_format == Formats.ftm:
         return write_ftm(output_file)
     if output_format == Formats.csv:
-        return write_csv(output_file)
+        return write_csv(output_file, **kwargs)

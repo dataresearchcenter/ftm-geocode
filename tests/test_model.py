@@ -32,7 +32,7 @@ class ModelTestCase(TestCase):
         self.assertDictEqual(
             proxy.to_dict(),
             {
-                "id": "addr-gb-b1f216701402f0caa846650c41305c5eace84437",
+                "id": "addr-gb-7305a0eaef6fdebc0f6bac6066fd1e26fd7fd54a",
                 "schema": "Address",
                 "properties": {
                     "remarks": ["openstreetmap foundation st john's innovation centre"],
