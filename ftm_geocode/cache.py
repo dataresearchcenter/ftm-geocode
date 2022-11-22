@@ -5,12 +5,11 @@ import dataset
 from dataset.database import Database
 from dataset.table import Table
 from followthemoney.util import make_entity_id
-from ftmstore.settings import DATABASE_URI
 from normality import normalize
 
 from .logging import get_logger
 from .model import AddressInput, GeocodingResult, PostalContext, get_address_id
-from .settings import CACHE_TABLE
+from .settings import CACHE_TABLE, DATABASE_URI
 
 log = get_logger(__name__)
 

@@ -103,7 +103,9 @@ Make sure to configure the geocoders as needed for `geopy` (endpoints, api keys,
 
 **Persistent cache**
 
-The cache database is set via `FTM_STORE_URI` (so it is the same as the ftm store, if any)
+The cache database is set via `FTM_STORE_URI` (so it is the same as the
+[ftm store](https://github.com/alephdata/followthemoney-store), if any,
+otherwise it defaults to `sqlite:///cache.db`
 
 ## Installation
 

@@ -1,5 +1,6 @@
 libpostal*
 followthemoney.store*
+cache.db*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -5,7 +5,9 @@ install:
 	pip install twine coverage nose moto pytest pytest-cov black flake8 isort bump2version mypy ipdb
 
 test: install
+	rm -rf ./cache.db*
 	pytest tests -s --cov=ftm_geocode --cov-report term-missing
+	rm -rf ./cache.db*
 
 build:
 	python setup.py sdist bdist_wheel
