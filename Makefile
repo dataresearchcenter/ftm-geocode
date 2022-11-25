@@ -9,6 +9,9 @@ test: install
 	pytest tests -s --cov=ftm_geocode --cov-report term-missing
 	rm -rf ./cache.db*
 
+typecheck:
+	mypy --strict ftm_geocode
+
 build:
 	python setup.py sdist bdist_wheel
 
