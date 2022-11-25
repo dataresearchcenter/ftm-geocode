@@ -1,4 +1,4 @@
-from functools import cache
+from functools import cache, lru_cache
 from typing import Generator
 
 import dataset
@@ -14,6 +14,7 @@ from .settings import CACHE_TABLE, DATABASE_URI
 log = get_logger(__name__)
 
 
+@lru_cache(1_000_000)
 def get_cache_key(value: str, **ctx: PostalContext) -> str:
     country = ctx.get("country")
     ident = make_entity_id(normalize(value))
@@ -28,12 +29,13 @@ def get_connection() -> Database:
 
 
 class BulkWrite:
-    limit = 10_000
-    rows: list[GeocodingResult] = []
-    i = 0
+    def __init__(self, limit: int | None = 10_000):
+        self.limit = limit
+        self.rows: list[GeocodingResult] = []
+        self.i = 0
 
     def put(self, row: GeocodingResult):
-        row.cache_key = get_cache_key(row.original_line)
+        row.cache_key = get_cache_key(row.original_line, country=row.country)
         self.rows.append(dict(row))
         self.i += 1
         if self.i % self.limit == 0:
@@ -47,8 +49,25 @@ class BulkWrite:
 
 
 class Cache:
+    indexes = (
+        ("ix", "cache_key"),
+        ("aix", "address_id"),
+        ("cix", "canonical_id"),
+    )
+
     def __str__(self) -> str:
         return f"<GeoCache `{DATABASE_URI}`>"
+
+    def ensure_index(self):
+        with get_connection() as tx:
+            has_data = tx[CACHE_TABLE].find_one()
+            if has_data is not None:
+                log.info("Ensuring indexes...")
+                for name, field in self.indexes:
+                    tx.query(
+                        f"CREATE INDEX IF NOT EXISTS {name} ON {CACHE_TABLE}({field})"
+                    )
+                log.info("...done")
 
     def get_table(self) -> Table:
         db = get_connection()
@@ -79,8 +98,5 @@ class Cache:
                 yield GeocodingResult(**row)
 
 
-def get_cache() -> Cache:
-    return Cache()
-
-
-cache = get_cache()
+cache = Cache()
+cache.ensure_index()

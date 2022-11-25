@@ -109,7 +109,7 @@ def geocode_line(
 
     # look in cache
     if use_cache:
-        result = cache.get(value)
+        result = cache.get(value, **ctx)
         if result is not None:
             log.info(f"Cache hit: `{value}`", cache=str(cache))
             return result
