@@ -18,7 +18,13 @@ from .cache import cache
 from .io import Formats
 from .logging import get_logger
 from .model import Address, GeocodingResult, get_address_id
-from .util import apply_address, get_proxy_addresses, normalize, normalize_google
+from .util import (
+    apply_address,
+    get_country_name,
+    get_proxy_addresses,
+    normalize,
+    normalize_google,
+)
 
 geopy.geocoders.options.default_user_agent = settings.USER_AGENT
 geopy.geocoders.options.default_timeout = settings.DEFAULT_TIMEOUT
@@ -32,54 +38,68 @@ class GeocodingContext(TypedDict):
     country: str | None = None
 
 
-CONFIG = {
-    Geocoders.nominatim: {
-        "domain": os.environ.get("FTMGEO_NOMINATIM_DOMAIN"),
-    },
-    Geocoders.googlev3: {
-        "api_key": os.environ.get("FTMGEO_GOOGLE_API_KEY"),
-    },
-}
+class Geocoder:
+    SETTINGS = {
+        Geocoders.nominatim: {
+            "config": {
+                "domain": os.environ.get("FTMGEO_NOMINATIM_DOMAIN"),
+            },
+            "params": lambda **ctx: {"country_codes": ctx.get("country")},
+        },
+        Geocoders.googlev3: {
+            "config": {
+                "api_key": os.environ.get("FTMGEO_GOOGLE_API_KEY"),
+            },
+            "params": lambda **ctx: {"region": ctx.get("country")},
+            "query": lambda query, **ctx: normalize_google(query),
+        },
+        Geocoders.arcgis: {
+            "params": lambda **ctx: {"out_fields": "*"},
+            "query": lambda query, **ctx: ", ".join(
+                (query, get_country_name(ctx.get("country")) or "")
+            ),
+        },
+    }
 
-GEOCODER_CTX = {
-    Geocoders.nominatim: lambda ctx: {"country_codes": ctx.get("country")},
-    Geocoders.googlev3: lambda ctx: {"region": ctx.get("country")},
-    Geocoders.arcgis: lambda ctx: {"out_fields": "*"},
-}
+    def __init__(self, geocoder: Geocoders):
+        self._settings = self.SETTINGS.get(geocoder, {})
+        config = clean_dict(self._settings.get("config", {}))
+        self.geocoder = get_geocoder_for_service(geocoder.value)(**config)
 
+    def get_params(self, **ctx: GeocodingContext) -> dict[str, Any]:
+        func = self._settings.get("params", lambda **ctx: {})
+        return clean_dict(func(**ctx))
 
-def get_geocoder(geocoder: Geocoders):
-    config = clean_dict(CONFIG.get(geocoder, {}))
-    geocoder = get_geocoder_for_service(geocoder.value)
-    return geocoder(**config)
+    def get_query(self, query: str, **ctx: GeocodingContext) -> str:
+        func = self._settings.get("query", lambda query, **ctx: query)
+        return func(query, **ctx)
 
 
 def _geocode(
     geocoder: Geocoders, value: str, **ctx: GeocodingContext
 ) -> GeocodingResult | None:
-    geocoding_value = value
-    if "google" in geocoder.value:
-        geocoding_value = normalize_google(value)
-    geocode_ctx = {}
-    ctx_getter = GEOCODER_CTX.get(geocoder)
-    if ctx_getter is not None:
-        geocode_ctx = ctx_getter(ctx)
-    geolocator = get_geocoder(geocoder)
+    geolocator = Geocoder(geocoder)
+    geocoding_query = geolocator.get_query(value, **ctx)
+    geocoding_params = geolocator.get_params(**ctx)
     geocode = RateLimiter(
-        geolocator.geocode,
+        geolocator.geocoder.geocode,
         min_delay_seconds=settings.MIN_DELAY_SECONDS,
         max_retries=settings.MAX_RETRIES,
     )
     address_id = get_address_id(value, **ctx)
 
     try:
-        result = geocode(geocoding_value, **geocode_ctx)
+        result = geocode(geocoding_query, **geocoding_params)
     except (AdapterHTTPError, GeocoderQueryError):
         result = None
         pass  # error will be logged
 
     if result is not None:
-        log.info(f"Geocoder hit: `{value}`", geocoder=geocoder.value)
+        log.info(
+            f"Geocoder hit: `{geocoding_query}`",
+            geocoder=geocoder.value,
+            **geocoding_params,
+        )
         address = Address.from_string(result.address, **ctx)
         result = GeocodingResult(
             address_id=address_id,
@@ -111,7 +131,7 @@ def geocode_line(
     if use_cache:
         result = cache.get(value, **ctx)
         if result is not None:
-            log.info(f"Cache hit: `{value}`", cache=str(cache))
+            log.info(f"Cache hit: `{value}`", cache=str(cache), **ctx)
             return result
 
     # geocode

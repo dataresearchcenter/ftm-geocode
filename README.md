@@ -17,6 +17,8 @@ There are as well some parsing / normalization helpers.
 
 ### command line
 
+    ftmgeo --help
+
 The command line interface is designed for piping input / output streams, but
 for each command a `-i <input_file>` and `-o <output_file>` can be used as well.
 
@@ -43,6 +45,10 @@ to keep the original ids, add the flag `--no-rewrite-ids`
 
 Geocoders can be set via `GEOCODERS` and default to `nominatim`
 
+More information:
+
+    ftmgeo geocode --help
+
 ### geocoding just address strings
 
 **csv format (for all csv input streams)**
@@ -68,6 +74,8 @@ Generate address entities (without geocoding):
 
 ### database cache
 
+    ftmgeo cache --help
+
 During geocoding, addresses are first looked up in the local cache, and new
 geocoding results are added.
 
@@ -89,6 +97,18 @@ optional field: `geocoder_raw` - json of geocoder response
 
     cat geocoded_addresses.csv | ftmgeo cache populate
 
+### apply cache / re-geocode
+
+    ftmgeo cache apply-csv --help
+
+To get addresses from cache without geocoding from a csv input stream, passing
+through additional csv data from input:
+
+    cat addresses.csv | ftmgeo cache apply-csv --output-format csv > results.csv
+
+Only get missing to re-geocode (e.g. with a different geocoder):
+
+    cat addresses.csv | ftmgeo cache apply-csv --output-format csv --get-missing | ftmgeo geocode
 
 ## Configuration
 

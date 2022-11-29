@@ -57,19 +57,30 @@ def read_csv(
         yield address, country, language, *rest
 
 
-def write_csv(output_file: typer.FileTextWrite, include_raw: bool | None = False):
+def write_csv(
+    output_file: typer.FileTextWrite,
+    include_raw: bool | None = False,
+    extra_fields: list[str] | None = [],
+):
     fieldnames = GeocodingResult.__annotations__.keys()
     if not include_raw:
         fieldnames = [
             f for f in fieldnames if f not in ("ts", "geocoder_raw", "cache_key")
         ]
+    fieldnames = set(fieldnames) | set(extra_fields)
 
     writer = csv.DictWriter(output_file, fieldnames=fieldnames)
     writer.writeheader()
 
-    def _write(result: GeocodingResult, *rest):
-        result = {k: v for k, v in result if k in fieldnames}
-        writer.writerow(result)
+    def _write(
+        result: GeocodingResult | None = None, extra_data: dict[str, str] | None = {}
+    ):
+        if result is not None:
+            data = {**extra_data, **result.dict()}
+        else:
+            data = extra_data
+        data = {k: v for k, v in data.items() if k in fieldnames}
+        writer.writerow(data)
 
     return _write
 

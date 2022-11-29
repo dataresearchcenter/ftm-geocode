@@ -5,7 +5,7 @@ from typing import Any, TypedDict
 import lazy_import
 from banal import clean_dict
 from followthemoney import model
-from followthemoney.proxy import E
+from followthemoney.proxy import E, EntityProxy
 from followthemoney.util import make_entity_id
 from normality import collapse_spaces, normalize
 from pydantic import BaseModel, create_model
@@ -91,6 +91,8 @@ class AddressBase(BaseModel):
         return get_first(getattr(self, attr, None), default)
 
     def get_id(self) -> str:  # serves as cache key
+        if hasattr(self, "_id"):
+            return self._id
         ident = make_entity_id(normalize(self.get_formatted_line()))
         country = self.get_first("country")
         if country:
@@ -211,8 +213,15 @@ class Address(FtmAddressBase):
         address.longitude = [str(result.lon)]
         return address
 
+    @classmethod
+    def from_proxy(cls, proxy: E) -> "Address":
+        data = proxy.to_dict()
+        address = cls(**data["properties"])
+        address._id = proxy.id
+        return address
 
-AddressInput = str | Address | PostalAddress
+
+AddressInput = str | Address | PostalAddress | E | GeocodingResult
 
 
 def get_address(data: AddressInput, **ctx: PostalContext) -> Address:
@@ -220,6 +229,10 @@ def get_address(data: AddressInput, **ctx: PostalContext) -> Address:
         return Address.from_string(data, **ctx)
     if isinstance(data, PostalAddress):
         return Address.from_postal(data, **ctx)
+    if isinstance(data, EntityProxy):
+        return Address.from_proxy(data)
+    if isinstance(data, GeocodingResult):
+        return Address.from_result(data)
     return data
 
 
