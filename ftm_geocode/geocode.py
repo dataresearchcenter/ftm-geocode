@@ -9,7 +9,7 @@ from banal import clean_dict
 from followthemoney import model
 from followthemoney.proxy import EntityProxy
 from geopy.adapters import AdapterHTTPError
-from geopy.exc import GeocoderQueryError
+from geopy.exc import GeocoderQueryError, GeocoderServiceError
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import SERVICE_TO_GEOCODER, get_geocoder_for_service
 
@@ -71,7 +71,7 @@ class Geocoder:
         return clean_dict(func(**ctx))
 
     def get_query(self, query: str, **ctx: GeocodingContext) -> str:
-        func = self._settings.get("query", lambda query, **ctx: query)
+        func = self._settings.get("query", lambda query, **ctx: normalize(query))
         return func(query, **ctx)
 
 
@@ -90,9 +90,13 @@ def _geocode(
 
     try:
         result = geocode(geocoding_query, **geocoding_params)
-    except (AdapterHTTPError, GeocoderQueryError):
+    except (AdapterHTTPError, GeocoderQueryError, GeocoderServiceError) as e:
         result = None
-        pass  # error will be logged
+        log.error(
+            f"{e}: {e.message} `{geocoding_query}`",
+            geocoder=geocoder.value,
+            **geocoding_params,
+        )
 
     if result is not None:
         log.info(
@@ -124,8 +128,6 @@ def geocode_line(
     use_cache: bool | None = True,
     **ctx: GeocodingContext,
 ) -> GeocodingResult | None:
-
-    value = normalize(value)
 
     # look in cache
     if use_cache:

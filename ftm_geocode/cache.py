@@ -8,14 +8,16 @@ from followthemoney.util import make_entity_id
 from normality import normalize
 
 from .logging import get_logger
-from .model import AddressInput, GeocodingResult, PostalContext, get_address_id
+from .model import GeocodingResult, PostalContext, get_address_id
 from .settings import CACHE_TABLE, DATABASE_URI
+from .util import normalize as unormalize
 
 log = get_logger(__name__)
 
 
 @lru_cache(1_000_000)
 def get_cache_key(value: str, **ctx: PostalContext) -> str:
+    value = unormalize(value)  # FIXME erf
     country = ctx.get("country")
     ident = make_entity_id(normalize(value))
     if country is not None:
@@ -34,8 +36,11 @@ class BulkWrite:
         self.rows: list[GeocodingResult] = []
         self.i = 0
 
-    def put(self, row: GeocodingResult):
-        row.cache_key = get_cache_key(row.original_line, country=row.country)
+    def put(self, row: GeocodingResult, cache_key: str | None = None):
+        if cache_key is None:
+            row.cache_key = get_cache_key(row.original_line, country=row.country)
+        else:
+            row.cache_key = cache_key
         self.rows.append(dict(row))
         self.i += 1
         if self.i % self.limit == 0:
@@ -73,24 +78,28 @@ class Cache:
         db = get_connection()
         return db[CACHE_TABLE]
 
-    def put(self, row: GeocodingResult):
+    def put(self, row: GeocodingResult, cache_key: str | None = None):
         bulk = self.bulk()
-        bulk.put(row)
+        bulk.put(row, cache_key)
         bulk.flush()
 
     def bulk(self) -> BulkWrite:
         return BulkWrite()
 
-    def get(self, data: AddressInput, **ctx) -> GeocodingResult | None:
+    def get(self, address_line: str, **ctx) -> GeocodingResult | None:
+        cache_key = get_cache_key(address_line, **ctx)
         table = self.get_table()
-        if isinstance(data, str):
-            for res in table.find(cache_key=get_cache_key(data, **ctx)):
-                return GeocodingResult(**res)
-        address_id = get_address_id(data, **ctx)
+        for res in table.find(cache_key=cache_key):
+            return GeocodingResult(**res)
+        address_id = get_address_id(address_line, **ctx)
         for res in table.find(address_id=address_id):
-            return GeocodingResult(**res)
+            res = GeocodingResult(**res)
+            self.put(res, cache_key)
+            return res
         for res in table.find(canonical_id=address_id):
-            return GeocodingResult(**res)
+            res = GeocodingResult(**res)
+            self.put(res, cache_key)
+            return res
 
     def iterate(self) -> Generator[GeocodingResult, None, None]:
         with get_connection() as tx:
