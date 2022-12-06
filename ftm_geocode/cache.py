@@ -89,14 +89,14 @@ class Cache:
     def get(self, address_line: str, **ctx) -> GeocodingResult | None:
         cache_key = get_cache_key(address_line, **ctx)
         table = self.get_table()
-        for res in table.find(cache_key=cache_key):
+        for res in table.find(cache_key=cache_key, order_by="-ts"):
             return GeocodingResult(**res)
         address_id = get_address_id(address_line, **ctx)
-        for res in table.find(address_id=address_id):
+        for res in table.find(address_id=address_id, order_by="-ts"):
             res = GeocodingResult(**res)
             self.put(res, cache_key)
             return res
-        for res in table.find(canonical_id=address_id):
+        for res in table.find(canonical_id=address_id, order_by="-ts"):
             res = GeocodingResult(**res)
             self.put(res, cache_key)
             return res
