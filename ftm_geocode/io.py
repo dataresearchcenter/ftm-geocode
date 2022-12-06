@@ -27,8 +27,8 @@ def read_ftm(input_file: typer.FileText) -> Generator[Row, None, None]:
         yield model.get_proxy(orjson.loads(row))
 
 
-def write_ftm(output_file: typer.FileTextWrite):
-    def _write(data: GeocodingResult | EntityProxy):
+def write_ftm(output_file: typer.FileTextWrite, **kwargs):
+    def _write(data: GeocodingResult | EntityProxy, **kwargs):
         if isinstance(data, GeocodingResult):
             address = Address.from_result(data)
             proxy = address.to_proxy()
@@ -98,6 +98,6 @@ def get_writer(
     output_file: typer.FileTextWrite, output_format: Formats, **kwargs
 ) -> Literal[write_ftm, write_csv]:
     if output_format == Formats.ftm:
-        return write_ftm(output_file)
+        return write_ftm(output_file, **kwargs)
     if output_format == Formats.csv:
         return write_csv(output_file, **kwargs)
