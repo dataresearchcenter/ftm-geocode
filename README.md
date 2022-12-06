@@ -133,7 +133,7 @@ Required external is [libpostal](https://github.com/openvenues/pypostal), see in
 
 Once `libpostal` is installed on your system, you can install:
 
-    pip install ftm-geocoder
+    pip install ftm-geocoder[postal]
 
 Verify that this works without errors:
 
