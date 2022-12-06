@@ -79,7 +79,7 @@ def _geocode(
     geocoder: Geocoders, value: str, **ctx: GeocodingContext
 ) -> GeocodingResult | None:
     geolocator = Geocoder(geocoder)
-    geocoding_query = geolocator.get_query(value, **ctx)
+    value = geolocator.get_query(value, **ctx)
     geocoding_params = geolocator.get_params(**ctx)
     geocode = RateLimiter(
         geolocator.geocoder.geocode,
@@ -89,18 +89,18 @@ def _geocode(
     address_id = get_address_id(value, **ctx)
 
     try:
-        result = geocode(geocoding_query, **geocoding_params)
+        result = geocode(value, **geocoding_params)
     except (AdapterHTTPError, GeocoderQueryError, GeocoderServiceError) as e:
         result = None
         log.error(
-            f"{e}: {e.message} `{geocoding_query}`",
+            f"{e}: {e.message} `{value}`",
             geocoder=geocoder.value,
             **geocoding_params,
         )
 
     if result is not None:
         log.info(
-            f"Geocoder hit: `{geocoding_query}`",
+            f"Geocoder hit: `{value}`",
             geocoder=geocoder.value,
             **geocoding_params,
         )
