@@ -154,6 +154,10 @@ def geocode_proxy(
     rewrite_ids: bool | None = True,
 ) -> Generator[EntityProxy | GeocodingResult, None, None]:
     proxy = model.get_proxy(proxy)
+    if not proxy.schema.is_a("Thing"):
+        yield proxy
+        return
+
     is_address = proxy.schema.is_a("Address")
     ctx = {"country": proxy.first("country") or ""}
     results = (
