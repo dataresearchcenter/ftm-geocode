@@ -14,6 +14,7 @@ RUN make install
 RUN ldconfig
 
 COPY ftm_geocode /app/ftm_geocode
+COPY data /app/data
 COPY setup.py /app/setup.py
 COPY setup.cfg /app/setup.cfg
 COPY VERSION /app/VERSION
