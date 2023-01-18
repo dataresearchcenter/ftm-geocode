@@ -8,14 +8,25 @@ from functools import cache, lru_cache
 from typing import Any
 
 import geopandas as gpd
+import pandas as pd
 from followthemoney.proxy import E
 from pydantic import BaseModel
 from shapely.geometry import Point
 
 from .logging import get_logger
 from .settings import NUTS_DATA
+from .util import get_country_name
 
 log = get_logger(__name__)
+
+
+LEVELS = {
+    # length of code -> level
+    2: 0,
+    3: 1,
+    4: 2,
+    5: 3,
+}
 
 
 class Nuts(BaseModel):
@@ -38,7 +49,64 @@ def get_nuts_data():
     return df
 
 
+@cache
+def get_nuts_pivot():
+    # FIXME this should be simpler
+    df = get_nuts_data()
+    df = df[["LEVL_CODE", "NUTS_ID"]].drop_duplicates()
+
+    def _pivot():
+        for _, nuts0 in df[df["LEVL_CODE"] == 0].iterrows():
+            nuts0 = nuts0["NUTS_ID"]
+            for _, nuts1 in df[
+                (df["LEVL_CODE"] == 1) & df["NUTS_ID"].str.startswith(nuts0)
+            ].iterrows():
+                nuts1 = nuts1["NUTS_ID"]
+                for _, nuts2 in df[
+                    (df["LEVL_CODE"] == 2) & df["NUTS_ID"].str.startswith(nuts1)
+                ].iterrows():
+                    nuts2 = nuts2["NUTS_ID"]
+                    for _, nuts3 in df[
+                        (df["LEVL_CODE"] == 3) & df["NUTS_ID"].str.startswith(nuts2)
+                    ].iterrows():
+                        nuts3 = nuts3["NUTS_ID"]
+                        yield nuts0, nuts1, nuts2, nuts3
+
+    df = pd.DataFrame(_pivot(), columns=("nuts0", "nuts1", "nuts2", "nuts3"))
+    df["path"] = df.apply(lambda x: "/".join(x), axis=1)
+    return df
+
+
+@cache
+def get_nuts_names():
+    df = get_nuts_data()
+    df = df[["NUTS_ID", "NUTS_NAME"]].set_index("NUTS_ID")
+    return df["NUTS_NAME"].T.to_dict()
+
+
 @lru_cache
+def get_nuts_name(code: str) -> str:
+    names = get_nuts_names()
+    return names[code]
+
+
+def get_nuts_level(code: str) -> int:
+    return LEVELS[len(code)]
+
+
+def get_nuts_country(code: str) -> str:
+    return get_country_name(code[:2])
+
+
+@lru_cache
+def get_nuts_path(code: str) -> str:
+    df = get_nuts_pivot()
+    path = df[df["path"].str.contains(code)].iloc[0]["path"]
+    level = get_nuts_level(code)
+    return "/".join(path.split("/")[: level + 1])
+
+
+@lru_cache(1_000_000)
 def _get_nuts_codes(lon: float, lat: float) -> Nuts | None:
     df = get_nuts_data()
     point = Point(lon, lat)

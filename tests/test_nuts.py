@@ -105,3 +105,13 @@ class NutsTestCase(TestCase):
         )
         self.assertEqual(res.nuts0_id, "DE")
         self.assertEqual(res.nuts3_id, "DE300")
+
+    def test_nuts_logic(self):
+        self.assertEqual(nuts.get_nuts_name("DE"), "Deutschland")
+        self.assertEqual(nuts.get_nuts_name("DE3"), "Berlin")
+        self.assertEqual(nuts.get_nuts_name("DE30"), "Berlin")
+        self.assertEqual(nuts.get_nuts_name("DE300"), "Berlin")
+        self.assertEqual(nuts.get_nuts_country("DE300"), "Germany")
+        self.assertEqual(nuts.get_nuts_level("DE300"), 3)
+        self.assertEqual(nuts.get_nuts_level("DE3"), 1)
+        self.assertEqual(nuts.get_nuts_path("DE300"), "DE/DE3/DE30/DE300")
