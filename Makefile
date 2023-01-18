@@ -28,3 +28,6 @@ clean:
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f {} +
 	find . -name '__pycache__' -exec rm -fr {} +
+
+data/NUTS_RG_01M_2021_4326.shp.zip:
+	wget -4 -O data/NUTS_RG_01M_2021_4326.shp.zip https://gisco-services.ec.europa.eu/distribution/v2/nuts/shp/NUTS_RG_01M_2021_4326.shp.zip

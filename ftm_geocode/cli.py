@@ -5,9 +5,10 @@ import typer
 
 from .cache import cache
 from .geocode import GEOCODERS, geocode_line, geocode_proxy
-from .io import Formats, get_reader, get_writer
+from .io import Formats, get_coords_reader, get_reader, get_writer
 from .logging import get_logger
 from .model import GeocodingResult, get_address
+from .nuts import Nuts, get_proxy_nuts
 
 cli = typer.Typer()
 cli_cache = typer.Typer()
@@ -24,12 +25,12 @@ def format_line(
 ):
     """
     Get formatted line via libpostal parsing from csv input stream with 1 or
-    more columns:
-        - 1st column: address line
-        - 2nd column (optional): country or iso code - good to know for libpostal
-        - 3nd column (optional): language or iso code - good to know for libpostal
-        - all other columns will be passed through and appended to the result
-          (if using extra columns, country and language columns needs to be present)
+    more columns:\n
+        - 1st column: address line\n
+        - 2nd column (optional): country or iso code - good to know for libpostal\n
+        - 3nd column (optional): language or iso code - good to know for libpostal\n
+        - all other columns will be passed through and appended to the result\n
+          (if using extra columns, country and language columns needs to be present)\n
     """
     reader = get_reader(input_file, Formats.csv, header=header)
     writer = csv.writer(output_file)
@@ -81,6 +82,35 @@ def geocode(
             result = geocode_line(geocoder, address, use_cache=cache, country=country)
             if result is not None:
                 writer(result, *rest)
+
+
+@cli.command()
+def apply_nuts(
+    input_file: typer.FileText = typer.Option("-", "-i", help="Input file"),
+    input_format: Formats = typer.Option(Formats.ftm.value, help="Input format"),
+    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="Output file"),
+    header: bool = typer.Option(True, help="Input stream has csv header row"),
+):
+    """
+    Apply EU NUTS codes to input stream (outputs always csv)
+    """
+    reader = get_coords_reader(input_file, input_format, header=header)
+
+    if input_format == Formats.ftm:
+        writer = csv.DictWriter(output_file, fieldnames=["id", *Nuts.__fields__.keys()])
+        writer.writeheader()
+        ix = 0
+        for ix, proxy in enumerate(reader):
+            nuts = get_proxy_nuts(proxy)
+            if nuts is not None:
+                writer.writerow({**{"id": proxy.id}, **nuts.dict()})
+            if ix and ix % 1_000 == 0:
+                log.info("Parse proxy %d ..." % ix)
+        if ix:
+            log.info("Parsed %d proxies" % (ix + 1))
+
+    if input_format == Formats.csv:
+        raise NotImplementedError("currently only ftm input stream implemented")
 
 
 @cli_cache.command("iterate")

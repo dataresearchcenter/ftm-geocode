@@ -6,7 +6,7 @@ import geopy.geocoders
 import orjson
 from banal import clean_dict
 from followthemoney import model
-from followthemoney.proxy import EntityProxy
+from followthemoney.proxy import E
 from geopy.adapters import AdapterHTTPError
 from geopy.exc import GeocoderQueryError, GeocoderServiceError
 from geopy.extra.rate_limiter import RateLimiter
@@ -151,11 +151,11 @@ def geocode_line(
 
 def geocode_proxy(
     geocoder: list[GEOCODERS],
-    proxy: EntityProxy | dict[str, Any],
+    proxy: E | dict[str, Any],
     use_cache: bool | None = True,
     output_format: Formats | None = Formats.ftm,
     rewrite_ids: bool | None = True,
-) -> Generator[EntityProxy | GeocodingResult, None, None]:
+) -> Generator[E | GeocodingResult, None, None]:
     proxy = model.get_proxy(proxy)
     if not proxy.schema.is_a("Thing"):
         if output_format == Formats.ftm:

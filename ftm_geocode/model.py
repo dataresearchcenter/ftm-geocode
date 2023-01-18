@@ -92,8 +92,6 @@ class AddressBase(BaseModel):
         return get_first(getattr(self, attr, None), default)
 
     def get_id(self) -> str:  # serves as cache key
-        if hasattr(self, "_id"):
-            return self._id
         ident = make_entity_id(normalize(self.get_formatted_line()))
         country = self.get_first("country")
         if country:
@@ -166,9 +164,14 @@ FtmAddressBase: AddressBase = create_model(
 
 
 class Address(FtmAddressBase):
+    _id: str | None = None
+
+    class Config:
+        underscore_attrs_are_private = True
+
     def get_id(self) -> str:
         # use place ids to generate ids
-        if hasattr(self, "_id"):
+        if self._id:
             return self._id
         osmId, googlePlaceId = self.get_first("osmId"), self.get_first("googlePlaceId")
         if osmId:
@@ -221,8 +224,8 @@ class Address(FtmAddressBase):
         ctx = {"country": result.country}
         address = cls.from_postal(PostalAddress.from_string(result.result_line, **ctx))
         address.full = [result.result_line]
-        address.latitude = [str(result.lat)]
         address.longitude = [str(result.lon)]
+        address.latitude = [str(result.lat)]
         if result.geocoder == GEOCODERS.nominatim.name:
             address.osmId = [result.geocoder_place_id]
         if result.geocoder == GEOCODERS.google.name:
@@ -266,3 +269,11 @@ def get_canonical_id(geocoder: GEOCODERS, place_id: str) -> str:
     if geocoder == GEOCODERS.nominatim:
         return f"addr-osm-{place_id}"
     return f"addr-{geocoder.value}-{place_id}"
+
+
+def get_coords(data: AddressInput, **ctx: PostalContext) -> tuple[float, float] | None:
+    address = get_address(data, **ctx)
+    try:
+        return float(get_first(address.longitude)), float(get_first(address.latitude))
+    except ValueError:
+        return None
