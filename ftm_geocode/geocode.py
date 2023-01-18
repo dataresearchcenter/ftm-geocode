@@ -158,7 +158,8 @@ def geocode_proxy(
 ) -> Generator[EntityProxy | GeocodingResult, None, None]:
     proxy = model.get_proxy(proxy)
     if not proxy.schema.is_a("Thing"):
-        yield proxy
+        if output_format == Formats.ftm:
+            yield proxy
         return
 
     is_address = proxy.schema.is_a("Address")
