@@ -4,7 +4,7 @@ from datetime import datetime
 import typer
 
 from .cache import cache
-from .geocode import Geocoders, geocode_line, geocode_proxy
+from .geocode import GEOCODERS, geocode_line, geocode_proxy
 from .io import Formats, get_reader, get_writer
 from .logging import get_logger
 from .model import GeocodingResult, get_address
@@ -47,8 +47,8 @@ def geocode(
     input_format: Formats = typer.Option(Formats.ftm.value, help="Input format"),
     output_file: typer.FileTextWrite = typer.Option("-", "-o", help="Output file"),
     output_format: Formats = typer.Option(Formats.ftm.value, help="Output format"),
-    geocoder: list[Geocoders] = typer.Option(
-        [Geocoders.nominatim.value], "--geocoder", "-g"
+    geocoder: list[GEOCODERS] = typer.Option(
+        [GEOCODERS.nominatim.value], "--geocoder", "-g"
     ),
     cache: bool = typer.Option(True, help="Use cache database"),
     include_raw: bool = typer.Option(

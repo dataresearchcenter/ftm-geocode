@@ -11,7 +11,7 @@ class GeocodingTestCase(TestCase):
            CB4 0WS
            United Kingdom"""
 
-    geocoder = geocode.Geocoders.nominatim
+    geocoder = geocode.GEOCODERS.nominatim
 
     def test_geocode_line(self):
         result = geocode.geocode_line(
@@ -22,14 +22,7 @@ class GeocodingTestCase(TestCase):
             result.address_id,
             "addr-gb-db3268056d7dd490c8a94d16a4634329724e6980",
         )
-        # FIXME
-        self.assertIn(
-            result.canonical_id,
-            (
-                "addr-gb-7305a0eaef6fdebc0f6bac6066fd1e26fd7fd54a",
-                "addr-gb-79c261d440e67bbc17527dbeee5bf437e170e127",
-            ),
-        )
+        self.assertEqual(result.canonical_id, "addr-osm-102184726")
         self.assertEqual(
             result.original_line, "Cowley Road Cambridge CB4 0WS United Kingdom"
         )
@@ -46,13 +39,9 @@ class GeocodingTestCase(TestCase):
         addressProxy, updatedProxy = geocode.geocode_proxy(
             [self.geocoder], proxy, use_cache=False
         )
-        # FIXME
-        self.assertIn(
+        self.assertEqual(
             updatedProxy.first("addressEntity"),
-            (
-                "addr-gb-7305a0eaef6fdebc0f6bac6066fd1e26fd7fd54a",
-                "addr-gb-79c261d440e67bbc17527dbeee5bf437e170e127",
-            ),
+            ("addr-osm-102184726"),
         )
         self.assertIn(
             "Cowley Road, Chesterton, Cambridge, Cambridgeshire, Cambridgeshire and Peterborough, England, CB4 0AP, United Kingdom",

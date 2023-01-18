@@ -1,6 +1,5 @@
 import os
 from datetime import datetime
-from enum import Enum
 from typing import Any, Generator, TypedDict
 
 import geopy.geocoders
@@ -11,13 +10,14 @@ from followthemoney.proxy import EntityProxy
 from geopy.adapters import AdapterHTTPError
 from geopy.exc import GeocoderQueryError, GeocoderServiceError
 from geopy.extra.rate_limiter import RateLimiter
-from geopy.geocoders import SERVICE_TO_GEOCODER, get_geocoder_for_service
+from geopy.geocoders import get_geocoder_for_service
 
 from . import settings
 from .cache import cache
 from .io import Formats
 from .logging import get_logger
-from .model import Address, GeocodingResult, get_address_id
+from .model import Address, GeocodingResult, get_address_id, get_canonical_id
+from .settings import GEOCODERS
 from .util import (
     apply_address,
     get_country_name,
@@ -31,8 +31,6 @@ geopy.geocoders.options.default_timeout = settings.DEFAULT_TIMEOUT
 
 log = get_logger(__name__)
 
-Geocoders = Enum("Geocoders", ((k, k) for k in SERVICE_TO_GEOCODER.keys()))
-
 
 class GeocodingContext(TypedDict):
     country: str | None = None
@@ -40,20 +38,20 @@ class GeocodingContext(TypedDict):
 
 class Geocoder:
     SETTINGS = {
-        Geocoders.nominatim: {
+        GEOCODERS.nominatim: {
             "config": {
                 "domain": os.environ.get("FTMGEO_NOMINATIM_DOMAIN"),
             },
             "params": lambda **ctx: {"country_codes": ctx.get("country")},
         },
-        Geocoders.googlev3: {
+        GEOCODERS.googlev3: {
             "config": {
                 "api_key": os.environ.get("FTMGEO_GOOGLE_API_KEY"),
             },
             "params": lambda **ctx: {"region": ctx.get("country")},
             "query": lambda query, **ctx: normalize_google(query),
         },
-        Geocoders.arcgis: {
+        GEOCODERS.arcgis: {
             "params": lambda **ctx: {"out_fields": "*"},
             "query": lambda query, **ctx: ", ".join(
                 (query, get_country_name(ctx.get("country")) or "")
@@ -61,7 +59,7 @@ class Geocoder:
         },
     }
 
-    def __init__(self, geocoder: Geocoders):
+    def __init__(self, geocoder: GEOCODERS):
         self._settings = self.SETTINGS.get(geocoder, {})
         config = clean_dict(self._settings.get("config", {}))
         self.geocoder = get_geocoder_for_service(geocoder.value)(**config)
@@ -76,7 +74,7 @@ class Geocoder:
 
 
 def _geocode(
-    geocoder: Geocoders, value: str, **ctx: GeocodingContext
+    geocoder: GEOCODERS, value: str, **ctx: GeocodingContext
 ) -> GeocodingResult | None:
     geolocator = Geocoder(geocoder)
     value = geolocator.get_query(value, **ctx)
@@ -105,16 +103,21 @@ def _geocode(
             **geocoding_params,
         )
         address = Address.from_string(result.address, **ctx)
+        geocoder_place_id = result.raw.get("place_id")
+        if geocoder_place_id:
+            canonical_id = get_canonical_id(geocoder, geocoder_place_id)
+        else:
+            canonical_id = address.get_id()
         result = GeocodingResult(
             address_id=address_id,
-            canonical_id=address.get_id(),
+            canonical_id=canonical_id,
             original_line=value,
             result_line=result.address,
             country=address.get_country(),
             lat=result.latitude,
             lon=result.longitude,
             geocoder=geocoder.value,
-            geocoder_place_id=result.raw.get("place_id"),
+            geocoder_place_id=geocoder_place_id,
             geocoder_raw=orjson.dumps(result.raw),
             ts=datetime.now(),
         )
@@ -123,7 +126,7 @@ def _geocode(
 
 
 def geocode_line(
-    geocoder: list[Geocoders],
+    geocoder: list[GEOCODERS],
     value: str,
     use_cache: bool | None = True,
     **ctx: GeocodingContext,
@@ -147,7 +150,7 @@ def geocode_line(
 
 
 def geocode_proxy(
-    geocoder: list[Geocoders],
+    geocoder: list[GEOCODERS],
     proxy: EntityProxy | dict[str, Any],
     use_cache: bool | None = True,
     output_format: Formats | None = Formats.ftm,

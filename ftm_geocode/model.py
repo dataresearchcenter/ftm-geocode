@@ -11,6 +11,7 @@ from normality import collapse_spaces, normalize
 from pydantic import BaseModel, create_model
 from zavod.parse.addresses import format_line
 
+from .settings import GEOCODERS
 from .util import clean_country_codes, clean_country_names, get_country_code, get_first
 
 
@@ -165,6 +166,17 @@ FtmAddressBase: AddressBase = create_model(
 
 
 class Address(FtmAddressBase):
+    def get_id(self) -> str:
+        # use place ids to generate ids
+        if hasattr(self, "_id"):
+            return self._id
+        osmId, googlePlaceId = self.get_first("osmId"), self.get_first("googlePlaceId")
+        if osmId:
+            return f"addr-osm-{osmId}"
+        if googlePlaceId:
+            return f"addr-google-{googlePlaceId}"
+        return super().get_id()
+
     def to_proxy(self) -> E:
         return model.get_proxy(
             {
@@ -211,6 +223,10 @@ class Address(FtmAddressBase):
         address.full = [result.result_line]
         address.latitude = [str(result.lat)]
         address.longitude = [str(result.lon)]
+        if result.geocoder == GEOCODERS.nominatim.name:
+            address.osmId = [result.geocoder_place_id]
+        if result.geocoder == GEOCODERS.google.name:
+            address.googlePlaceId = [result.geocoder_place_id]
         return address
 
     @classmethod
@@ -244,3 +260,9 @@ def get_formatted_line(data: AddressInput, **ctx: PostalContext) -> str:
 def get_address_id(data: AddressInput, **ctx: PostalContext) -> str:
     address = get_address(data, **ctx)
     return address.get_id()
+
+
+def get_canonical_id(geocoder: GEOCODERS, place_id: str) -> str:
+    if geocoder == GEOCODERS.nominatim:
+        return f"addr-osm-{place_id}"
+    return f"addr-{geocoder.value}-{place_id}"
