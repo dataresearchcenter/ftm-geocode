@@ -11,6 +11,8 @@ from normality import collapse_spaces, normalize
 from pydantic import BaseModel, create_model
 from zavod.parse.addresses import format_line
 
+from .nuts import get_nuts_codes
+from .settings import GEOCODERS
 from .util import clean_country_codes, clean_country_names, get_country_code, get_first
 
 
@@ -21,12 +23,33 @@ class GeocodingResult(BaseModel):
     original_line: str
     result_line: str
     country: str
-    lat: float
     lon: float
+    lat: float
     geocoder: str
     geocoder_place_id: str | None = None
     geocoder_raw: str | None = None
+    nuts0_id: str | None = None
+    nuts1_id: str | None = None
+    nuts2_id: str | None = None
+    nuts3_id: str | None = None
     ts: datetime
+
+    def apply_nuts(self):
+        if (
+            not self.nuts0_id
+            or not self.nuts1_id  # noqa
+            or not self.nuts2_id  # noqa
+            or not self.nuts3_id  # noqa
+        ):
+            nuts = get_nuts_codes(self.lon, self.lat)
+            if nuts is not None:
+                self.nuts0_id = nuts.nuts0_id
+                self.nuts1_id = nuts.nuts1_id
+                self.nuts2_id = nuts.nuts2_id
+                self.nuts3_id = nuts.nuts3_id
+
+    def ensure_canonical_id(self):
+        self.canonical_id = get_address_id(self)
 
 
 # https://github.com/openvenues/libpostal#parser-labels
@@ -91,8 +114,6 @@ class AddressBase(BaseModel):
         return get_first(getattr(self, attr, None), default)
 
     def get_id(self) -> str:  # serves as cache key
-        if hasattr(self, "_id"):
-            return self._id
         ident = make_entity_id(normalize(self.get_formatted_line()))
         country = self.get_first("country")
         if country:
@@ -165,6 +186,22 @@ FtmAddressBase: AddressBase = create_model(
 
 
 class Address(FtmAddressBase):
+    _id: str | None = None
+
+    class Config:
+        underscore_attrs_are_private = True
+
+    def get_id(self) -> str:
+        # use place ids to generate ids
+        if self._id:
+            return self._id
+        osmId, googlePlaceId = self.get_first("osmId"), self.get_first("googlePlaceId")
+        if osmId:
+            return f"addr-osm-{osmId}"
+        if googlePlaceId:
+            return f"addr-google-{googlePlaceId}"
+        return super().get_id()
+
     def to_proxy(self) -> E:
         return model.get_proxy(
             {
@@ -209,8 +246,12 @@ class Address(FtmAddressBase):
         ctx = {"country": result.country}
         address = cls.from_postal(PostalAddress.from_string(result.result_line, **ctx))
         address.full = [result.result_line]
-        address.latitude = [str(result.lat)]
         address.longitude = [str(result.lon)]
+        address.latitude = [str(result.lat)]
+        if result.geocoder == GEOCODERS.nominatim.name:
+            address.osmId = [result.geocoder_place_id]
+        if result.geocoder == GEOCODERS.google.name:
+            address.googlePlaceId = [result.geocoder_place_id]
         return address
 
     @classmethod
@@ -244,3 +285,17 @@ def get_formatted_line(data: AddressInput, **ctx: PostalContext) -> str:
 def get_address_id(data: AddressInput, **ctx: PostalContext) -> str:
     address = get_address(data, **ctx)
     return address.get_id()
+
+
+def get_canonical_id(geocoder: GEOCODERS, place_id: str) -> str:
+    if geocoder == GEOCODERS.nominatim:
+        return f"addr-osm-{place_id}"
+    return f"addr-{geocoder.value}-{place_id}"
+
+
+def get_coords(data: AddressInput, **ctx: PostalContext) -> tuple[float, float] | None:
+    address = get_address(data, **ctx)
+    try:
+        return float(get_first(address.longitude)), float(get_first(address.latitude))
+    except ValueError:
+        return None

@@ -5,7 +5,7 @@ from unicodedata import normalize as _unormalize
 import countrynames
 import pycountry
 from banal import ensure_list
-from followthemoney.proxy import EntityProxy
+from followthemoney.proxy import E
 from followthemoney.types import registry
 from normality import collapse_spaces
 from normality import normalize as _normalize
@@ -72,7 +72,7 @@ def normalize_google(value: str) -> str:
     return ", ".join(_normalize(v, lowercase=False) for v in value.split(","))
 
 
-def get_proxy_addresses(proxy: EntityProxy) -> Generator[str, None, None]:
+def get_proxy_addresses(proxy: E) -> Generator[str, None, None]:
     if proxy.schema.is_a("Address"):
         yield proxy.caption
     else:
@@ -80,9 +80,7 @@ def get_proxy_addresses(proxy: EntityProxy) -> Generator[str, None, None]:
             yield value
 
 
-def apply_address(
-    proxy: EntityProxy, address: EntityProxy, rewrite_id: bool | None = True
-) -> EntityProxy:
+def apply_address(proxy: E, address: E, rewrite_id: bool | None = True) -> E:
     if proxy.schema.is_a("Address"):
         if rewrite_id:
             proxy.id = address.id
