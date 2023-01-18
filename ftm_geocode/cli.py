@@ -127,6 +127,10 @@ def cache_iterate(
     output_format: Formats = typer.Option(Formats.ftm.value, help="Output format"),
     include_raw: bool = typer.Option(False, help="Include geocoder raw response"),
     apply_nuts: bool = typer.Option(False, help="Add EU nuts codes"),
+    ensure_ids: bool = typer.Option(
+        False,
+        help="Make sure address IDs are in most recent format (useful for migrating)",
+    ),
 ):
     """
     Export cached addresses to csv or ftm entities
@@ -136,6 +140,8 @@ def cache_iterate(
     for res in cache.iterate():
         if output_format == Formats.csv and apply_nuts:
             res.apply_nuts()
+        if ensure_ids:
+            res.ensure_canonical_id()
         writer(res)
 
 
@@ -143,6 +149,10 @@ def cache_iterate(
 def cache_populate(
     input_file: typer.FileText = typer.Option("-", "-i", help="Input file"),
     apply_nuts: bool = typer.Option(False, help="Add EU nuts codes"),
+    ensure_ids: bool = typer.Option(
+        False,
+        help="Make sure address IDs are in most recent format (useful for migrating)",
+    ),
 ):
     """
     Populate cache from csv input with these columns:
@@ -170,6 +180,8 @@ def cache_populate(
         result = GeocodingResult(**row)
         if apply_nuts:
             result.apply_nuts()
+        if ensure_ids:
+            result.ensure_canonical_id()
         bulk.put(result)
     bulk.flush()
 

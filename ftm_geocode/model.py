@@ -48,6 +48,9 @@ class GeocodingResult(BaseModel):
                 self.nuts2_id = nuts.nuts2_id
                 self.nuts3_id = nuts.nuts3_id
 
+    def ensure_canonical_id(self):
+        self.canonical_id = get_address_id(self)
+
 
 # https://github.com/openvenues/libpostal#parser-labels
 # postal -> ftm
