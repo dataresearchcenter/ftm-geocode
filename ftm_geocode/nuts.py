@@ -20,15 +20,6 @@ from .util import get_country_name
 log = get_logger(__name__)
 
 
-LEVELS = {
-    # length of code -> level
-    2: 0,
-    3: 1,
-    4: 2,
-    5: 3,
-}
-
-
 class Nuts(BaseModel):
     nuts0: str
     nuts0_id: str
@@ -91,7 +82,7 @@ def get_nuts_name(code: str) -> str:
 
 
 def get_nuts_level(code: str) -> int:
-    return LEVELS[len(code)]
+    return len(code) - 2
 
 
 def get_nuts_country(code: str) -> str:
