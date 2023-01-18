@@ -59,6 +59,7 @@ def geocode(
         True, help="Rewrite `Address` entity ids to canonized id"
     ),
     header: bool = typer.Option(True, help="Input stream has csv header row"),
+    apply_nuts: bool = typer.Option(False, help="Add EU nuts codes"),
 ):
     """
     Geocode ftm entities or csv input to given output format using different geocoders
@@ -74,12 +75,19 @@ def geocode(
                 use_cache=cache,
                 output_format=output_format,
                 rewrite_ids=rewrite_ids,
+                apply_nuts=apply_nuts,
             ):
                 writer(result)
 
     else:
         for address, country, language, *rest in reader:
-            result = geocode_line(geocoder, address, use_cache=cache, country=country)
+            result = geocode_line(
+                geocoder,
+                address,
+                use_cache=cache,
+                country=country,
+                apply_nuts=apply_nuts,
+            )
             if result is not None:
                 writer(result, *rest)
 
@@ -118,6 +126,7 @@ def cache_iterate(
     output_file: typer.FileTextWrite = typer.Option("-", "-o", help="Output file"),
     output_format: Formats = typer.Option(Formats.ftm.value, help="Output format"),
     include_raw: bool = typer.Option(False, help="Include geocoder raw response"),
+    apply_nuts: bool = typer.Option(False, help="Add EU nuts codes"),
 ):
     """
     Export cached addresses to csv or ftm entities
@@ -125,13 +134,15 @@ def cache_iterate(
     writer = get_writer(output_file, output_format, include_raw=include_raw)
 
     for res in cache.iterate():
+        if output_format == Formats.csv and apply_nuts:
+            res.apply_nuts()
         writer(res)
 
 
 @cli_cache.command("populate")
 def cache_populate(
     input_file: typer.FileText = typer.Option("-", "-i", help="Input file"),
-    input_format: Formats = typer.Option(Formats.csv.value, help="Input format"),
+    apply_nuts: bool = typer.Option(False, help="Add EU nuts codes"),
 ):
     """
     Populate cache from csv input with these columns:
@@ -145,6 +156,10 @@ def cache_populate(
         geocoder: str
         geocoder_place_id: str | None = None
         geocoder_raw: str | None = None
+        nuts0_id: str | None = None
+        nuts1_id: str | None = None
+        nuts2_id: str | None = None
+        nuts3_id: str | None = None
     """
     reader = csv.DictReader(input_file)
     bulk = cache.bulk()
@@ -153,6 +168,8 @@ def cache_populate(
         if "ts" not in row:
             row["ts"] = datetime.now()
         result = GeocodingResult(**row)
+        if apply_nuts:
+            result.apply_nuts()
         bulk.put(result)
     bulk.flush()
 

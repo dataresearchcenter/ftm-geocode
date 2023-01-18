@@ -5,6 +5,7 @@ https://ec.europa.eu/eurostat/web/gisco/geodata/reference-data/administrative-un
 """
 
 from functools import cache, lru_cache
+from typing import Any
 
 import geopandas as gpd
 from followthemoney.proxy import E
@@ -38,7 +39,7 @@ def get_nuts_data():
 
 
 @lru_cache
-def get_nuts_codes(lon: float, lat: float) -> Nuts | None:
+def _get_nuts_codes(lon: float, lat: float) -> Nuts | None:
     df = get_nuts_data()
     point = Point(lon, lat)
     res = (
@@ -62,6 +63,14 @@ def get_nuts_codes(lon: float, lat: float) -> Nuts | None:
         data[f"nuts{level}"] = row["NUTS_NAME"]
         data[f"nuts{level}_id"] = row["NUTS_ID"]
     return Nuts(**data)
+
+
+def get_nuts_codes(lon: Any | None = None, lat: Any | None = None) -> Nuts | None:
+    try:
+        lon, lat = round(float(lon), 6), round(float(lat), 6)
+        return _get_nuts_codes(lon, lat)
+    except ValueError:
+        log.error("Invalid coordinates: (%s, %s)" % (lon, lat))
 
 
 def get_proxy_nuts(proxy: E) -> Nuts | None:

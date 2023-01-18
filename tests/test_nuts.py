@@ -76,3 +76,32 @@ class NutsTestCase(TestCase):
         coords = get_coords(address)
         codes = nuts.get_nuts_codes(*coords)
         self.assertIsNone(codes)
+
+    def test_nuts_apply_to_result(self):
+        res = geocode.geocode_line(
+            [geocode.GEOCODERS.nominatim], self.addressEntity.caption
+        )
+        res.apply_nuts()
+        self.assertEqual(res.nuts0_id, "DE")
+        self.assertEqual(res.nuts3_id, "DE300")
+
+    def test_nuts_apply_during_geocode(self):
+        res = geocode.geocode_line(
+            [geocode.GEOCODERS.nominatim],
+            "Axel Springer Straße, Berlin",
+            country="de",
+            use_cache=False,
+            apply_nuts=True,
+        )
+        self.assertEqual(res.nuts0_id, "DE")
+        self.assertEqual(res.nuts3_id, "DE300")
+
+        res = geocode.geocode_line(
+            [geocode.GEOCODERS.nominatim],
+            "Axel Springer Straße, Berlin",
+            country="de",
+            use_cache=True,
+            apply_nuts=True,
+        )
+        self.assertEqual(res.nuts0_id, "DE")
+        self.assertEqual(res.nuts3_id, "DE300")
