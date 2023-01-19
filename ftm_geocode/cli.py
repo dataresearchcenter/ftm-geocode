@@ -3,7 +3,7 @@ from datetime import datetime
 
 import typer
 
-from .cache import cache
+from .cache import get_cache
 from .geocode import GEOCODERS, geocode_line, geocode_proxy
 from .io import Formats, get_coords_reader, get_reader, get_writer
 from .logging import get_logger
@@ -138,6 +138,7 @@ def cache_iterate(
     Export cached addresses to csv or ftm entities
     """
     writer = get_writer(output_file, output_format, include_raw=include_raw)
+    cache = get_cache()
 
     for res in cache.iterate():
         if output_format == Formats.csv and apply_nuts:
@@ -174,6 +175,7 @@ def cache_populate(
         nuts3_id: str | None = None
     """
     reader = csv.DictReader(input_file)
+    cache = get_cache()
     bulk = cache.bulk()
 
     for row in reader:
@@ -211,6 +213,8 @@ def cache_apply_csv(
         include_raw=include_raw,
         extra_fields=reader.fieldnames,
     )
+    cache = get_cache()
+
     for row in reader:
         address = row.get(address_column)
         country = row.get(country_column, "")

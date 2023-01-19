@@ -13,7 +13,7 @@ from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import get_geocoder_for_service
 
 from . import settings
-from .cache import cache
+from .cache import get_cache
 from .io import Formats
 from .logging import get_logger
 from .model import Address, GeocodingResult, get_address_id, get_canonical_id
@@ -85,6 +85,7 @@ def _geocode(
         max_retries=settings.MAX_RETRIES,
     )
     address_id = get_address_id(value, **ctx)
+    cache = get_cache()
 
     try:
         result = geocode(value, **geocoding_params)
@@ -135,6 +136,7 @@ def geocode_line(
 
     # look in cache
     if use_cache:
+        cache = get_cache()
         result = cache.get(value, **ctx)
         if result is not None:
             log.info(f"Cache hit: `{value}`", cache=str(cache), **ctx)
