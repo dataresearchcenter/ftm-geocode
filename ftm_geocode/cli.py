@@ -8,7 +8,7 @@ from .geocode import GEOCODERS, geocode_line, geocode_proxy
 from .io import Formats, get_coords_reader, get_reader, get_writer
 from .logging import get_logger
 from .model import GeocodingResult, get_address
-from .nuts import Nuts, get_proxy_nuts
+from .nuts import Nuts3, get_proxy_nuts
 
 cli = typer.Typer()
 cli_cache = typer.Typer()
@@ -105,7 +105,9 @@ def apply_nuts(
     reader = get_coords_reader(input_file, input_format, header=header)
 
     if input_format == Formats.ftm:
-        writer = csv.DictWriter(output_file, fieldnames=["id", *Nuts.__fields__.keys()])
+        writer = csv.DictWriter(
+            output_file, fieldnames=["id", *Nuts3.__fields__.keys()]
+        )
         writer.writeheader()
         ix = 0
         for ix, proxy in enumerate(reader):
