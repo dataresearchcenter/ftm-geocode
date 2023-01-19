@@ -86,20 +86,8 @@ class Cache:
     def bulk(self) -> BulkWrite:
         return BulkWrite()
 
-    def get(self, address_line: str, **ctx) -> GeocodingResult | None:
-        cache_key = get_cache_key(address_line, **ctx)
-        table = self.get_table()
-        for res in table.find(cache_key=cache_key, order_by="-ts"):
-            return GeocodingResult(**res)
-        address_id = get_address_id(address_line, **ctx)
-        for res in table.find(address_id=address_id, order_by="-ts"):
-            res = GeocodingResult(**res)
-            self.put(res, cache_key)
-            return res
-        for res in table.find(canonical_id=address_id, order_by="-ts"):
-            res = GeocodingResult(**res)
-            self.put(res, cache_key)
-            return res
+    def get(self, address_line: str, **ctx: PostalContext) -> GeocodingResult | None:
+        return _lru_from_cache(address_line, **ctx)
 
     def iterate(self) -> Generator[GeocodingResult, None, None]:
         with get_connection() as tx:
@@ -112,3 +100,26 @@ def get_cache():
     c = Cache()
     c.ensure_index()
     return c
+
+
+@lru_cache(10_000)
+def _lru_from_cache(address_line: str, **ctx: PostalContext) -> GeocodingResult | None:
+    info = _lru_from_cache.cache_info()
+    if int(info.hits / 1000) % 10 == 0:
+        log.info(
+            f"Cache hits: {info.hits}, misses: {info.misses}, currsize: {info.currsize}"
+        )
+    c = get_cache()
+    cache_key = get_cache_key(address_line, **ctx)
+    table = c.get_table()
+    for res in table.find(cache_key=cache_key, order_by="-ts"):
+        return GeocodingResult(**res)
+    address_id = get_address_id(address_line, **ctx)
+    for res in table.find(address_id=address_id, order_by="-ts"):
+        res = GeocodingResult(**res)
+        c.put(res, cache_key)
+        return res
+    for res in table.find(canonical_id=address_id, order_by="-ts"):
+        res = GeocodingResult(**res)
+        c.put(res, cache_key)
+        return res
