@@ -107,5 +107,8 @@ class Cache:
                 yield GeocodingResult(**row)
 
 
-cache = Cache()
-cache.ensure_index()
+@cache
+def get_cache():
+    c = Cache()
+    c.ensure_index()
+    return c
