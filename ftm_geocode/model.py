@@ -11,7 +11,7 @@ from normality import collapse_spaces, normalize
 from pydantic import BaseModel, create_model
 from zavod.parse.addresses import format_line
 
-from .nuts import get_nuts_codes
+from .nuts import get_nuts
 from .settings import GEOCODERS
 from .util import clean_country_codes, clean_country_names, get_country_code, get_first
 
@@ -28,7 +28,6 @@ class GeocodingResult(BaseModel):
     geocoder: str
     geocoder_place_id: str | None = None
     geocoder_raw: str | None = None
-    nuts0_id: str | None = None
     nuts1_id: str | None = None
     nuts2_id: str | None = None
     nuts3_id: str | None = None
@@ -36,14 +35,12 @@ class GeocodingResult(BaseModel):
 
     def apply_nuts(self):
         if (
-            not self.nuts0_id
-            or not self.nuts1_id  # noqa
+            not self.nuts1_id  # noqa
             or not self.nuts2_id  # noqa
             or not self.nuts3_id  # noqa
         ):
-            nuts = get_nuts_codes(self.lon, self.lat)
+            nuts = get_nuts(self.lon, self.lat)
             if nuts is not None:
-                self.nuts0_id = nuts.nuts0_id
                 self.nuts1_id = nuts.nuts1_id
                 self.nuts2_id = nuts.nuts2_id
                 self.nuts3_id = nuts.nuts3_id

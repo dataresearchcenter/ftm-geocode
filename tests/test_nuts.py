@@ -36,13 +36,11 @@ class NutsTestCase(TestCase):
         res = geocode.geocode_proxy([geocode.GEOCODERS.nominatim], self.addressEntity)
         address = list(res)[0]
         coords = get_coords(address)
-        codes = nuts.get_nuts_codes(*coords)
-        self.assertIsInstance(codes, nuts.Nuts)
+        n3 = nuts.get_nuts(*coords)
+        self.assertIsInstance(n3, nuts.Nuts3)
         self.assertDictEqual(
-            codes.dict(),
+            n3.dict(),
             {
-                "nuts0": "Deutschland",
-                "nuts0_id": "DE",
                 "nuts1": "Berlin",
                 "nuts1_id": "DE3",
                 "nuts2": "Berlin",
@@ -50,17 +48,17 @@ class NutsTestCase(TestCase):
                 "nuts3": "Berlin",
                 "nuts3_id": "DE300",
                 "country": "DE",
+                "country_name": "Germany",
+                "path": "DE/DE3/DE30/DE300",
             },
         )
         res = geocode.geocode_proxy([geocode.GEOCODERS.nominatim], self.ukAddress)
         address = list(res)[0]
         coords = get_coords(address)
-        codes = nuts.get_nuts_codes(*coords)
+        n3 = nuts.get_nuts(*coords)
         self.assertDictEqual(
-            codes.dict(),
+            n3.dict(),
             {
-                "nuts0": "United Kingdom",
-                "nuts0_id": "UK",
                 "nuts1": "East of England",
                 "nuts1_id": "UKH",
                 "nuts2": "East Anglia",
@@ -68,21 +66,23 @@ class NutsTestCase(TestCase):
                 "nuts3": "Cambridgeshire CC",
                 "nuts3_id": "UKH12",
                 "country": "UK",
+                "country_name": "United Kingdom",
+                "path": "UK/UKH/UKH1/UKH12",
             },
         )
 
         res = geocode.geocode_proxy([geocode.GEOCODERS.arcgis], self.outside)
         address = list(res)[0]
         coords = get_coords(address)
-        codes = nuts.get_nuts_codes(*coords)
-        self.assertIsNone(codes)
+        n3 = nuts.get_nuts(*coords)
+        self.assertIsNone(n3)
 
     def test_nuts_apply_to_result(self):
         res = geocode.geocode_line(
             [geocode.GEOCODERS.nominatim], self.addressEntity.caption
         )
         res.apply_nuts()
-        self.assertEqual(res.nuts0_id, "DE")
+        self.assertEqual(res.nuts1_id, "DE3")
         self.assertEqual(res.nuts3_id, "DE300")
 
     def test_nuts_apply_during_geocode(self):
@@ -93,7 +93,7 @@ class NutsTestCase(TestCase):
             use_cache=False,
             apply_nuts=True,
         )
-        self.assertEqual(res.nuts0_id, "DE")
+        self.assertEqual(res.nuts1_id, "DE3")
         self.assertEqual(res.nuts3_id, "DE300")
 
         res = geocode.geocode_line(
@@ -103,7 +103,7 @@ class NutsTestCase(TestCase):
             use_cache=True,
             apply_nuts=True,
         )
-        self.assertEqual(res.nuts0_id, "DE")
+        self.assertEqual(res.nuts1_id, "DE3")
         self.assertEqual(res.nuts3_id, "DE300")
 
     def test_nuts_logic(self):
@@ -111,7 +111,4 @@ class NutsTestCase(TestCase):
         self.assertEqual(nuts.get_nuts_name("DE3"), "Berlin")
         self.assertEqual(nuts.get_nuts_name("DE30"), "Berlin")
         self.assertEqual(nuts.get_nuts_name("DE300"), "Berlin")
-        self.assertEqual(nuts.get_nuts_country("DE300"), "Germany")
-        self.assertEqual(nuts.get_nuts_level("DE300"), 3)
-        self.assertEqual(nuts.get_nuts_level("DE3"), 1)
         self.assertEqual(nuts.get_nuts_path("DE300"), "DE/DE3/DE30/DE300")

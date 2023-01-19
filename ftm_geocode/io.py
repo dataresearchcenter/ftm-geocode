@@ -97,7 +97,7 @@ def write_csv(
         fieldnames = [
             f for f in fieldnames if f not in ("ts", "geocoder_raw", "cache_key")
         ]
-    fieldnames = set(fieldnames) | set(extra_fields)
+    fieldnames = fieldnames + [f for f in extra_fields if f not in fieldnames]
 
     writer = csv.DictWriter(output_file, fieldnames=fieldnames)
     writer.writeheader()
