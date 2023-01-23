@@ -11,7 +11,7 @@ from normality import collapse_spaces
 from normality import normalize as _normalize
 
 
-@lru_cache(1_000_000)
+@lru_cache(None)
 def get_country_code(value: str | None) -> str | None:
     if value is None:
         return
@@ -26,7 +26,7 @@ def get_country_code(value: str | None) -> str | None:
         return
 
 
-@lru_cache(1_000_000)
+@lru_cache(None)
 def get_country_name(code: str | None) -> str | None:
     if code is None:
         return
@@ -34,7 +34,7 @@ def get_country_name(code: str | None) -> str | None:
     try:
         country = pycountry.countries.get(alpha_2=code)
         return country.name
-    except LookupError:
+    except (LookupError, AttributeError):
         return
 
 

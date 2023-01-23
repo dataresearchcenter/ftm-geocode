@@ -131,6 +131,7 @@ def geocode_line(
     value: str,
     use_cache: bool | None = True,
     apply_nuts: bool | None = False,
+    verbose_log: bool | None = False,
     **ctx: GeocodingContext,
 ) -> GeocodingResult | None:
 
@@ -139,7 +140,8 @@ def geocode_line(
         cache = get_cache()
         result = cache.get(value, **ctx)
         if result is not None:
-            log.info(f"Cache hit: `{value}`", cache=str(cache), **ctx)
+            if verbose_log:
+                log.info(f"Cache hit: `{value}`", cache=str(cache), **ctx)
             if apply_nuts:
                 result.apply_nuts()
             return result
@@ -161,6 +163,7 @@ def geocode_proxy(
     proxy: E | dict[str, Any],
     use_cache: bool | None = True,
     apply_nuts: bool | None = False,
+    verbose_log: bool | None = False,
     output_format: Formats | None = Formats.ftm,
     rewrite_ids: bool | None = True,
 ) -> Generator[E | GeocodingResult, None, None]:
@@ -173,7 +176,14 @@ def geocode_proxy(
     is_address = proxy.schema.is_a("Address")
     ctx = {"country": proxy.first("country") or ""}
     results = (
-        geocode_line(geocoder, value, use_cache=use_cache, apply_nuts=apply_nuts, **ctx)
+        geocode_line(
+            geocoder,
+            value,
+            use_cache=use_cache,
+            apply_nuts=apply_nuts,
+            verbose_log=verbose_log,
+            **ctx,
+        )
         for value in get_proxy_addresses(proxy)
     )
     if output_format == Formats.ftm:

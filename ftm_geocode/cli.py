@@ -60,6 +60,7 @@ def geocode(
     ),
     header: bool = typer.Option(True, help="Input stream has csv header row"),
     apply_nuts: bool = typer.Option(False, help="Add EU nuts codes"),
+    verbose_log: bool = typer.Option(False, help="Don't log cache hits"),
 ):
     """
     Geocode ftm entities or csv input to given output format using different geocoders
@@ -76,6 +77,7 @@ def geocode(
                 output_format=output_format,
                 rewrite_ids=rewrite_ids,
                 apply_nuts=apply_nuts,
+                verbose_log=verbose_log,
             ):
                 writer(result)
 
@@ -87,6 +89,7 @@ def geocode(
                 use_cache=cache,
                 country=country,
                 apply_nuts=apply_nuts,
+                verbose_log=verbose_log,
             )
             if result is not None:
                 writer(result, *rest)
