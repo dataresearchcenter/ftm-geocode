@@ -34,7 +34,7 @@ def get_country_name(code: str | None) -> str | None:
     try:
         country = pycountry.countries.get(alpha_2=code)
         return country.name
-    except LookupError:
+    except (LookupError, AttributeError):
         return
 
 
