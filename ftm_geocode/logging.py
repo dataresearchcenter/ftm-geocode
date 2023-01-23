@@ -1,105 +1,52 @@
 import logging
 import sys
-from logging import Filter, LogRecord
-from typing import Any
 
 import structlog
 from structlog.contextvars import merge_contextvars
-from structlog.dev import ConsoleRenderer, set_exc_info
-from structlog.processors import (
-    JSONRenderer,
-    TimeStamper,
-    UnicodeDecoder,
-    add_log_level,
-    format_exc_info,
-)
-from structlog.stdlib import (
-    BoundLogger,
-    LoggerFactory,
-    ProcessorFormatter,
-    add_logger_name,
-)
 from structlog.stdlib import get_logger as get_raw_logger
-
-from . import settings
-
-
-def get_logger(name: str) -> BoundLogger:
-    return get_raw_logger(name)
+from structlog.types import Processor
 
 
-def configure_logging(level: int = logging.INFO) -> None:
-    """Configure log levels and structured logging"""
-    shared_processors: list[Any] = [
-        add_log_level,
-        add_logger_name,
-        # structlog.stdlib.PositionalArgumentsFormatter(),
-        # structlog.processors.StackInfoRenderer(),
+def configure_logging(
+    level: int = logging.DEBUG,
+    extra_processors: list[Processor] = [],
+) -> None:
+    """Configure log levels and structured logging."""
+    processors: list[Processor] = [
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.add_logger_name,
+        structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.dev.set_exc_info,
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
         merge_contextvars,
-        set_exc_info,
-        TimeStamper(fmt="iso"),
-        # format_exc_info,
-        UnicodeDecoder(),
     ]
+    processors.extend(extra_processors)
+    renderer = structlog.dev.ConsoleRenderer(
+        exception_formatter=structlog.dev.plain_traceback
+    )
+    formatter = structlog.stdlib.ProcessorFormatter(
+        foreign_pre_chain=list(processors),
+        processor=renderer,
+    )
 
-    if settings.LOG_JSON:
-        shared_processors.append(format_exc_info)
-        shared_processors.append(format_json)
-        formatter = ProcessorFormatter(
-            foreign_pre_chain=shared_processors,
-            processor=JSONRenderer(),
-        )
-    else:
-        formatter = ProcessorFormatter(
-            foreign_pre_chain=shared_processors,
-            processor=ConsoleRenderer(
-                exception_formatter=structlog.dev.plain_traceback
-            ),
-        )
-
-    processors = shared_processors + [
-        ProcessorFormatter.wrap_for_formatter,
-    ]
+    processors.append(structlog.stdlib.ProcessorFormatter.wrap_for_formatter)
 
     # configuration for structlog based loggers
     structlog.configure(
-        cache_logger_on_first_use=True,
-        # wrapper_class=AsyncBoundLogger,
-        wrapper_class=BoundLogger,
         processors=processors,
-        context_class=dict,
-        logger_factory=LoggerFactory(),
+        logger_factory=structlog.stdlib.LoggerFactory(),
     )
 
-    # handler for low level logs that should be sent to STDERR
-    # out_handler = logging.StreamHandler(sys.stderr)
-    # out_handler.setLevel(level)
-    # out_handler.addFilter(_MaxLevelFilter(logging.WARNING))
-    # out_handler.setFormatter(formatter)
-    # handler for high level logs that should be sent to STDERR
-    # error_handler = logging.StreamHandler(sys.stderr)
-    # error_handler.setLevel(logging.ERROR)
-    # error_handler.setFormatter(formatter)
     handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(level)
     handler.setFormatter(formatter)
 
-    root_logger = logging.getLogger()
-    root_logger.setLevel(settings.LOG_LEVEL)
-    root_logger.addHandler(handler)
-    # root_logger.addHandler(out_handler)
-    # root_logger.addHandler(error_handler)
+    logger = logging.getLogger()
+    logger.setLevel(level)
+    logger.addHandler(handler)
 
 
-def format_json(_: Any, __: Any, ed: dict[str, str]) -> dict[str, str]:
-    """Stackdriver uses `message` and `severity` keys to display logs"""
-    ed["message"] = ed.pop("event")
-    ed["severity"] = ed.pop("level", "info").upper()
-    return ed
-
-
-class _MaxLevelFilter(Filter):
-    def __init__(self, highest_log_level: int) -> None:
-        self._highest_log_level = highest_log_level
-
-    def filter(self, log_record: LogRecord) -> bool:
-        return log_record.levelno <= self._highest_log_level
+def get_logger(name: str) -> structlog.stdlib.BoundLogger:
+    return get_raw_logger(name)
