@@ -75,7 +75,9 @@ Get a csv with all the parsed components from libpostal.
 
     cat addresses.txt | ftmgeo parse-components > components.csv
 
-Generate address entities (without geocoding):
+### mapping
+
+Generate address entities from input stream (without geocoding):
 
     cat entities.ftm.ijson | ftmgeo map > entities.ftm.ijson
     cat addresses.csv | ftmgeo map --input-format=csv > addresses.ftm.ijson
