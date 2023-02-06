@@ -20,7 +20,7 @@ class GeocodingTestCase(TestCase):
         self.assertIsInstance(result, geocode.GeocodingResult)
         self.assertEqual(
             result.address_id,
-            "addr-gb-db3268056d7dd490c8a94d16a4634329724e6980",
+            "addr-gb-cae982ac59b76884890db911fe9faa0933e8a155",
         )
         self.assertEqual(result.canonical_id, "addr-osm-102184726")
         self.assertEqual(
@@ -48,7 +48,7 @@ class GeocodingTestCase(TestCase):
             addressProxy.get("full"),
         )
         self.assertEqual(addressProxy.first("country"), "GB")
-        self.assertEqual(addressProxy.first("city"), "cambridge")
+        self.assertEqual(addressProxy.first("city"), "Cambridge")
 
     def test_geocode_address_entity(self):
         proxy = model.get_proxy(
@@ -65,7 +65,7 @@ class GeocodingTestCase(TestCase):
             addressProxy.get("full"),
         )
         self.assertEqual(addressProxy.first("country"), "GB")
-        self.assertEqual(addressProxy.first("city"), "cambridge")
+        self.assertEqual(addressProxy.first("city"), "Cambridge")
 
         # csv output
         result = next(

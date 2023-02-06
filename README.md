@@ -65,7 +65,15 @@ To csv:
 
 ### formatting / normalization
 
+Get a cleaned address line from messy input strings.
+
     cat addresses.txt | ftmgeo format-line > clean_addresses.csv
+
+### libpostal parsed components
+
+Get a csv with all the parsed components from libpostal.
+
+    cat addresses.txt | ftmgeo parse-components > components.csv
 
 Generate address entities (without geocoding):
 

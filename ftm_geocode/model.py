@@ -6,14 +6,19 @@ import lazy_import
 from banal import clean_dict
 from followthemoney import model
 from followthemoney.proxy import E, EntityProxy
-from followthemoney.util import make_entity_id
+from followthemoney.util import join_text, make_entity_id
 from normality import collapse_spaces, normalize
 from pydantic import BaseModel, create_model
-from zavod.parse.addresses import format_line
 
 from .nuts import get_nuts
 from .settings import GEOCODERS
-from .util import clean_country_codes, clean_country_names, get_country_code, get_first
+from .util import (
+    clean_country_codes,
+    clean_country_names,
+    format_line,
+    get_country_code,
+    get_first,
+)
 
 
 class GeocodingResult(BaseModel):
@@ -91,9 +96,12 @@ MAPPING = (
     ("country_region", "region"),
     # sovereign nations and their dependent territories, anything with an ISO-3166 code.
     ("country", "country"),
+    ("country_code", "country"),
     # currently only used for appending “West Indies” after the country name, a pattern frequently used in the English-speaking Caribbean e.g. “Jamaica, West Indies”
     ("world_region", "region"),
 )
+
+POSTAL_KEYS = [m[0] for m in MAPPING]
 
 Values = list[str] | None
 
@@ -118,7 +126,7 @@ class AddressBase(BaseModel):
         return f"addr-{ident}"
 
     def to_dict(self) -> dict[str, list[str]]:
-        return clean_dict(dict(self))
+        return clean_dict(self.dict())
 
 
 class PostalAddressBase(AddressBase):
@@ -130,24 +138,21 @@ class PostalAddressBase(AddressBase):
         super().__init__(**data)
 
     def get_formatted_line(self) -> str:
-        return format_line(
-            summary=collapse_spaces(
-                " ".join(
-                    (
-                        self.get_first("house", ""),
-                        self.get_first("house_number", ""),
-                        self.get_first("near", ""),
-                    )
-                )
-            )
-            or None,  # noqa
-            po_box=self.get_first("po_box"),
-            street=self.get_first("street"),
-            postal_code=self.get_first("postcode"),
-            city=self.get_first("city"),
-            state=self.get_first("state"),
-            country_code=self.get_first("country_code"),
-        )
+        country = self.get_first("country")
+        data = {
+            "attention": self.get_first("near"),
+            "house": join_text(self.get_first("house"), self.get_first("po_box")),
+            "house_number": self.get_first("house_number"),
+            "road": self.get_first("street"),
+            "postcode": self.get_first("postcode"),
+            "city": self.get_first("city"),
+            "state": self.get_first("state"),
+            "country": country,
+        }
+        return format_line(data, country=country)
+
+    def to_dict(self) -> dict[str, str]:
+        return clean_dict({k: get_first(v) for k, v in self.dict().items()})
 
     @classmethod
     def from_postal_result(
@@ -155,7 +160,7 @@ class PostalAddressBase(AddressBase):
     ) -> "PostalAddress":
         data = defaultdict(set)
         for value, key in input_data:
-            data[key].add(value)
+            data[key].add(value.title())
         if "country" in ctx:
             data["country"].add(ctx["country"])
         return cls(**data)
@@ -171,7 +176,7 @@ class PostalAddressBase(AddressBase):
 
 PostalAddress: PostalAddressBase = create_model(
     "PostalAddress",
-    **{m[0]: (Values, None) for m in MAPPING},
+    **{k: (Values, None) for k in POSTAL_KEYS},
     __base__=PostalAddressBase,
 )
 
@@ -184,6 +189,7 @@ FtmAddressBase: AddressBase = create_model(
 
 class Address(FtmAddressBase):
     _id: str | None = None
+    _postal: PostalAddress | None = None
 
     class Config:
         underscore_attrs_are_private = True
@@ -209,17 +215,18 @@ class Address(FtmAddressBase):
         )
 
     def get_formatted_line(self) -> str:
-        return format_line(
-            summary=collapse_spaces(
+        country = get_country_code(self.get_first("country"))
+        data = {
+            "attention": collapse_spaces(
                 " ".join((self.get_first("summary", ""), " ".join(self.remarks or [])))
             ),
-            po_box=self.get_first("postOfficeBox"),
-            street=self.get_first("street"),
-            postal_code=self.get_first("postalCode"),
-            city=self.get_first("city"),
-            state=self.get_first("state"),
-            country_code=get_country_code(self.get_first("country")),
-        )
+            "house": self.get_first("postOfficeBox"),
+            "street": self.get_first("street"),
+            "postcode": self.get_first("postalCode"),
+            "city": self.get_first("city"),
+            "state": self.get_first("state"),
+        }
+        return format_line(data, country=country)
 
     @classmethod
     def from_postal(cls, input_data: PostalAddress, **ctx: PostalContext) -> "Address":
@@ -232,7 +239,9 @@ class Address(FtmAddressBase):
             if values is not None:
                 data[mapping[key]].update(values)
         data["country"] = clean_country_codes(data["country"])
-        return cls(**data)
+        instance = cls(**data)
+        instance._postal = input_data
+        return instance
 
     @classmethod
     def from_string(cls, value: str, **ctx: PostalContext) -> "Address":

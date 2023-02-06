@@ -19,10 +19,10 @@ class ModelTestCase(TestCase):
         self.assertDictEqual(
             address.to_dict(),
             {
-                "remarks": ["openstreetmap foundation st john's innovation centre"],
-                "street": ["cowley road"],
-                "city": ["cambridge"],
-                "postalCode": ["cb4 0ws"],
+                "remarks": ["Openstreetmap Foundation St John'S Innovation Centre"],
+                "street": ["Cowley Road"],
+                "city": ["Cambridge"],
+                "postalCode": ["Cb4 0Ws"],
                 "country": ["GB"],
             },
         )
@@ -32,13 +32,13 @@ class ModelTestCase(TestCase):
         self.assertDictEqual(
             proxy.to_dict(),
             {
-                "id": "addr-gb-7305a0eaef6fdebc0f6bac6066fd1e26fd7fd54a",
+                "id": "addr-gb-c0e5062177a485e1881fcfbd2210d6d7f1d2d3bd",
                 "schema": "Address",
                 "properties": {
-                    "remarks": ["openstreetmap foundation st john's innovation centre"],
-                    "street": ["cowley road"],
-                    "city": ["cambridge"],
-                    "postalCode": ["cb4 0ws"],
+                    "remarks": ["Openstreetmap Foundation St John'S Innovation Centre"],
+                    "street": ["Cowley Road"],
+                    "city": ["Cambridge"],
+                    "postalCode": ["Cb4 0Ws"],
                     "country": ["GB"],
                 },
             },
@@ -52,8 +52,31 @@ class ModelTestCase(TestCase):
         self.assertDictEqual(
             address,
             {
-                "remarks": ["737230", "duda-epureni"],
-                "street": ["ro"],
+                "remarks": ["737230", "Duda-Epureni"],
+                "street": ["Ro"],
                 "country": ["RO"],
+            },
+        )
+
+        # we store postal result to access it later
+        address = """
+            OpenStreetMap Foundation
+            St John’s Innovation Centre
+            Cowley Road
+            Cambridge
+            CB4 0WS
+            United Kingdom
+        """
+        address = model.Address.from_string(address)
+        self.assertIsInstance(address._postal, model.PostalAddress)
+        self.assertEqual(
+            address._postal.to_dict(),
+            {
+                "country_code": "GB",
+                "house": "Openstreetmap Foundation St John'S Innovation Centre",
+                "road": "Cowley Road",
+                "postcode": "Cb4 0Ws",
+                "city": "Cambridge",
+                "country": "United Kingdom",
             },
         )
