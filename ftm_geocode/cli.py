@@ -7,7 +7,7 @@ from .cache import get_cache
 from .geocode import GEOCODERS, geocode_line, geocode_proxy
 from .io import Formats, get_coords_reader, get_reader, get_writer
 from .logging import get_logger
-from .model import POSTAL_KEYS, GeocodingResult, get_address
+from .model import POSTAL_KEYS, GeocodingResult, get_address, get_components
 from .nuts import Nuts3, get_proxy_nuts
 
 cli = typer.Typer()
@@ -65,8 +65,7 @@ def parse_components(
     writer.writeheader()
 
     for original_line, country, language, *rest in reader:
-        address = get_address(original_line, language=language, country=country)
-        data = address._postal.to_dict()
+        data = get_components(original_line, country=country, language=language)
         data.update(original_line=original_line, language=language, country=country)
         writer.writerow(data)
 

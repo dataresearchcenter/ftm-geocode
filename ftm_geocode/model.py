@@ -283,6 +283,24 @@ def get_address(data: AddressInput, **ctx: PostalContext) -> Address:
     return data
 
 
+def get_components(data: AddressInput, **ctx: PostalContext) -> dict[str, str | None]:
+    if isinstance(data, PostalAddress):
+        return data.to_dict()
+    if isinstance(data, Address):
+        return data._postal.to_dict()
+
+    if isinstance(data, str):
+        data = PostalAddress.from_string(data, **ctx)
+    elif isinstance(data, EntityProxy):
+        data = PostalAddress.from_string(data.caption, **ctx)
+    elif isinstance(data, GeocodingResult):
+        data = PostalAddress.from_string(GeocodingResult.result_line, **ctx)
+    else:
+        raise NotImplementedError(data)
+
+    return data.to_dict()
+
+
 def get_formatted_line(data: AddressInput, **ctx: PostalContext) -> str:
     address = get_address(data, **ctx)
     return address.get_formatted_line()
