@@ -6,13 +6,16 @@ import typer
 from .cache import get_cache
 from .geocode import GEOCODERS, geocode_line, geocode_proxy
 from .io import Formats, get_coords_reader, get_reader, get_writer
-from .logging import get_logger
+from .logging import configure_logging, get_logger
 from .model import POSTAL_KEYS, GeocodingResult, get_address, get_components
 from .nuts import Nuts3, get_proxy_nuts
+from .settings import LOG_LEVEL
 
 cli = typer.Typer()
 cli_cache = typer.Typer()
 cli.add_typer(cli_cache, name="cache")
+
+configure_logging(LOG_LEVEL)
 
 log = get_logger(__name__)
 
