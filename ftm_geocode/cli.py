@@ -6,13 +6,16 @@ import typer
 from .cache import get_cache
 from .geocode import GEOCODERS, geocode_line, geocode_proxy
 from .io import Formats, get_coords_reader, get_reader, get_writer
-from .logging import get_logger
-from .model import GeocodingResult, get_address
+from .logging import configure_logging, get_logger
+from .model import POSTAL_KEYS, GeocodingResult, get_address, get_components
 from .nuts import Nuts3, get_proxy_nuts
+from .settings import LOG_LEVEL
 
 cli = typer.Typer()
 cli_cache = typer.Typer()
 cli.add_typer(cli_cache, name="cache")
+
+configure_logging(LOG_LEVEL)
 
 log = get_logger(__name__)
 
@@ -40,6 +43,34 @@ def format_line(
         writer.writerow(
             [address.get_formatted_line(), ";".join(address.country), *rest]
         )
+
+
+@cli.command()
+def parse_components(
+    input_file: typer.FileText = typer.Option("-", "-i", help="input file"),
+    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="output file"),
+    header: bool = typer.Option(True, help="Input stream has csv header row"),
+):
+    """
+    Get components parsed from libpostal from csv input stream with 1 or
+    more columns:\n
+        - 1st column: address line\n
+        - 2nd column (optional): country or iso code - good to know for libpostal\n
+        - 3nd column (optional): language or iso code - good to know for libpostal\n
+        - all other columns will be passed through and appended to the result\n
+          (if using extra columns, country and language columns needs to be present)\n
+    """
+    reader = get_reader(input_file, Formats.csv, header=header)
+    writer = csv.DictWriter(
+        output_file,
+        fieldnames=["original_line", *POSTAL_KEYS, "language"],
+    )
+    writer.writeheader()
+
+    for original_line, country, language, *rest in reader:
+        data = get_components(original_line, country=country, language=language)
+        data.update(original_line=original_line, language=language, country=country)
+        writer.writerow(data)
 
 
 @cli.command()

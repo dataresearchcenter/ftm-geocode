@@ -105,7 +105,7 @@ def get_cache():
 @lru_cache(10_000)
 def _lru_from_cache(address_line: str, **ctx: PostalContext) -> GeocodingResult | None:
     info = _lru_from_cache.cache_info()
-    if int(info.hits / 1000) % 10 == 0:
+    if int(info.hits) and int(info.hits / 1000) % 100 == 0:
         log.info(
             f"Cache hits: {info.hits}, misses: {info.misses}, currsize: {info.currsize}"
         )

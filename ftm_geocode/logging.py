@@ -8,7 +8,7 @@ from structlog.types import Processor
 
 
 def configure_logging(
-    level: int = logging.DEBUG,
+    level: int | str | None = logging.DEBUG,
     extra_processors: list[Processor] = [],
 ) -> None:
     """Configure log levels and structured logging."""

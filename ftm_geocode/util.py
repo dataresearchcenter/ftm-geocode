@@ -1,9 +1,10 @@
-from functools import lru_cache
+from functools import cache
 from typing import Any, Generator, Iterable
 from unicodedata import normalize as _unormalize
 
 import countrynames
 import pycountry
+from addressformatting import AddressFormatter
 from banal import ensure_list
 from followthemoney.proxy import E
 from followthemoney.types import registry
@@ -11,7 +12,16 @@ from normality import collapse_spaces
 from normality import normalize as _normalize
 
 
-@lru_cache(None)
+@cache
+def get_formatter() -> AddressFormatter:
+    return AddressFormatter()
+
+
+def format_line(data: dict[str, str | None], country: str) -> str:
+    return get_formatter().one_line(data, country)
+
+
+@cache
 def get_country_code(value: str | None) -> str | None:
     if value is None:
         return
@@ -26,7 +36,7 @@ def get_country_code(value: str | None) -> str | None:
         return
 
 
-@lru_cache(None)
+@cache
 def get_country_name(code: str | None) -> str | None:
     if code is None:
         return
