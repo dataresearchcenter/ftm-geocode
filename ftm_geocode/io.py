@@ -4,11 +4,12 @@ from typing import Any, Generator, Literal
 
 import orjson
 import typer
+from banal import ensure_dict, ensure_list
 from followthemoney import model
 from followthemoney.proxy import E
 
-from .logging import get_logger
-from .model import Address, GeocodingResult
+from ftm_geocode.logging import get_logger
+from ftm_geocode.model import Address, GeocodingResult
 
 log = get_logger(__name__)
 
@@ -90,23 +91,26 @@ def read_coords_csv(
 def write_csv(
     output_file: typer.FileTextWrite,
     include_raw: bool | None = False,
-    extra_fields: list[str] | None = [],
+    extra_fields: list[str] | None = None,
 ):
     fieldnames = GeocodingResult.__fields__.keys()
     if not include_raw:
         fieldnames = [
             f for f in fieldnames if f not in ("ts", "geocoder_raw", "cache_key")
         ]
-    fieldnames = fieldnames + [f for f in extra_fields if f not in fieldnames]
+    if extra_fields:
+        fieldnames = fieldnames + [
+            f for f in ensure_list(extra_fields) if f not in fieldnames
+        ]
 
     writer = csv.DictWriter(output_file, fieldnames=fieldnames)
     writer.writeheader()
 
     def _write(
-        result: GeocodingResult | None = None, extra_data: dict[str, str] | None = {}
+        result: GeocodingResult | None = None, extra_data: dict[str, str] | None = None
     ):
         if result is not None:
-            data = {**extra_data, **result.dict()}
+            data = {**ensure_dict(extra_data), **result.dict()}
         else:
             data = extra_data
         data = {k: v for k, v in data.items() if k in fieldnames}

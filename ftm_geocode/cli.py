@@ -2,14 +2,15 @@ import csv
 from datetime import datetime
 
 import typer
+from typing_extensions import Annotated
 
-from .cache import get_cache
-from .geocode import GEOCODERS, geocode_line, geocode_proxy
-from .io import Formats, get_coords_reader, get_reader, get_writer
-from .logging import configure_logging, get_logger
-from .model import POSTAL_KEYS, GeocodingResult, get_address, get_components
-from .nuts import Nuts3, get_proxy_nuts
-from .settings import LOG_LEVEL
+from ftm_geocode.cache import get_cache
+from ftm_geocode.geocode import GEOCODERS, geocode_line, geocode_proxy
+from ftm_geocode.io import Formats, get_coords_reader, get_reader, get_writer
+from ftm_geocode.logging import configure_logging, get_logger
+from ftm_geocode.model import POSTAL_KEYS, GeocodingResult, get_address, get_components
+from ftm_geocode.nuts import Nuts3, get_proxy_nuts
+from ftm_geocode.settings import LOG_LEVEL
 
 cli = typer.Typer()
 cli_cache = typer.Typer()
@@ -20,18 +21,36 @@ configure_logging(LOG_LEVEL)
 log = get_logger(__name__)
 
 
+class Opts:
+    IN = Annotated[str, typer.Option("-", "-i", help="Input uri (file, http, s3...)")]
+    OUT = Annotated[str, typer.Option("-", "-o", help="Output uri (file, http, s3...)")]
+    HEADER = Annotated[bool, typer.Option(True, help="Input csv stream has header row")]
+    FORMATS = Annotated[Formats, typer.Option(Formats.ftm.value)]
+    GEOCODERS = Annotated[
+        list[GEOCODERS], typer.Option([GEOCODERS.nominatim.value], "--geocoder", "-g")
+    ]
+    RAW = Annotated[
+        bool,
+        typer.Option(False, help="Include geocoder raw response (for csv output only)"),
+    ]
+    APPLY_NUTS = Annotated[bool, typer.Option(False, help="Add EU nuts codes")]
+    ENSURE_IDS = Annotated[
+        bool,
+        typer.Option(
+            False,
+            help="Make sure address IDs are in most recent format (useful for migrating)",
+        ),
+    ]
+
+
 @cli.command()
-def format_line(
-    input_file: typer.FileText = typer.Option("-", "-i", help="input file"),
-    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="output file"),
-    header: bool = typer.Option(True, help="Input stream has csv header row"),
-):
+def format_line(input_file: Opts.IN, output_file: Opts.OUT, header: Opts.HEADER):
     """
     Get formatted line via libpostal parsing from csv input stream with 1 or
     more columns:\n
         - 1st column: address line\n
         - 2nd column (optional): country or iso code - good to know for libpostal\n
-        - 3nd column (optional): language or iso code - good to know for libpostal\n
+        - 3rd column (optional): language or iso code - good to know for libpostal\n
         - all other columns will be passed through and appended to the result\n
           (if using extra columns, country and language columns needs to be present)\n
     """
@@ -46,17 +65,13 @@ def format_line(
 
 
 @cli.command()
-def parse_components(
-    input_file: typer.FileText = typer.Option("-", "-i", help="input file"),
-    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="output file"),
-    header: bool = typer.Option(True, help="Input stream has csv header row"),
-):
+def parse_components(input_file: Opts.IN, output_file: Opts.OUT, header: Opts.HEADER):
     """
     Get components parsed from libpostal from csv input stream with 1 or
     more columns:\n
         - 1st column: address line\n
         - 2nd column (optional): country or iso code - good to know for libpostal\n
-        - 3nd column (optional): language or iso code - good to know for libpostal\n
+        - 3rd column (optional): language or iso code - good to know for libpostal\n
         - all other columns will be passed through and appended to the result\n
           (if using extra columns, country and language columns needs to be present)\n
     """
@@ -67,7 +82,7 @@ def parse_components(
     )
     writer.writeheader()
 
-    for original_line, country, language, *rest in reader:
+    for original_line, country, language, *_rest in reader:
         data = get_components(original_line, country=country, language=language)
         data.update(original_line=original_line, language=language, country=country)
         writer.writerow(data)
@@ -75,23 +90,21 @@ def parse_components(
 
 @cli.command()
 def geocode(
-    input_file: typer.FileText = typer.Option("-", "-i", help="Input file"),
-    input_format: Formats = typer.Option(Formats.ftm.value, help="Input format"),
-    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="Output file"),
-    output_format: Formats = typer.Option(Formats.ftm.value, help="Output format"),
-    geocoder: list[GEOCODERS] = typer.Option(
-        [GEOCODERS.nominatim.value], "--geocoder", "-g"
-    ),
-    cache: bool = typer.Option(True, help="Use cache database"),
-    include_raw: bool = typer.Option(
-        False, help="Include geocoder raw response (for csv output only)"
-    ),
-    rewrite_ids: bool = typer.Option(
-        True, help="Rewrite `Address` entity ids to canonized id"
-    ),
-    header: bool = typer.Option(True, help="Input stream has csv header row"),
-    apply_nuts: bool = typer.Option(False, help="Add EU nuts codes"),
-    verbose_log: bool = typer.Option(False, help="Don't log cache hits"),
+    input_file: Opts.IN,
+    input_format: Opts.FORMATS,
+    output_file: Opts.OUT,
+    output_format: Opts.FORMATS,
+    geocoder: Opts.GEOCODERS,
+    include_raw: Opts.RAW,
+    header: Opts.HEADER,
+    cache: Annotated[bool, typer.Option(..., help="Use cache database")] = True,
+    rewrite_ids: Annotated[
+        bool, typer.Option(..., help="Rewrite `Address` entity ids to canonized id")
+    ] = True,
+    apply_nuts: Annotated[bool, typer.Option(..., help="Add EU nuts codes")] = False,
+    verbose_log: Annotated[
+        bool, typer.Option(..., help="Don't log cache hits")
+    ] = False,
 ):
     """
     Geocode ftm entities or csv input to given output format using different geocoders
@@ -113,7 +126,7 @@ def geocode(
                 writer(result)
 
     else:
-        for address, country, language, *rest in reader:
+        for address, country, _language, *rest in reader:
             result = geocode_line(
                 geocoder,
                 address,
@@ -128,10 +141,10 @@ def geocode(
 
 @cli.command()
 def apply_nuts(
-    input_file: typer.FileText = typer.Option("-", "-i", help="Input file"),
-    input_format: Formats = typer.Option(Formats.ftm.value, help="Input format"),
-    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="Output file"),
-    header: bool = typer.Option(True, help="Input stream has csv header row"),
+    input_file: Opts.IN,
+    input_format: Opts.FORMATS,
+    output_file: Opts.OUT,
+    header: Opts.HEADER,
 ):
     """
     Apply EU NUTS codes to input stream (outputs always csv)
@@ -159,14 +172,11 @@ def apply_nuts(
 
 @cli_cache.command("iterate")
 def cache_iterate(
-    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="Output file"),
-    output_format: Formats = typer.Option(Formats.ftm.value, help="Output format"),
-    include_raw: bool = typer.Option(False, help="Include geocoder raw response"),
-    apply_nuts: bool = typer.Option(False, help="Add EU nuts codes"),
-    ensure_ids: bool = typer.Option(
-        False,
-        help="Make sure address IDs are in most recent format (useful for migrating)",
-    ),
+    output_file: Opts.OUT,
+    output_format: Opts.FORMATS,
+    include_raw: Opts.RAW,
+    apply_nuts: Opts.APPLY_NUTS,
+    ensure_ids: Opts.ENSURE_IDS,
 ):
     """
     Export cached addresses to csv or ftm entities
@@ -184,28 +194,25 @@ def cache_iterate(
 
 @cli_cache.command("populate")
 def cache_populate(
-    input_file: typer.FileText = typer.Option("-", "-i", help="Input file"),
-    apply_nuts: bool = typer.Option(False, help="Add EU nuts codes"),
-    ensure_ids: bool = typer.Option(
-        False,
-        help="Make sure address IDs are in most recent format (useful for migrating)",
-    ),
+    input_file: Opts.IN,
+    apply_nuts: Opts.APPLY_NUTS,
+    ensure_ids: Opts.ENSURE_IDS,
 ):
     """
-    Populate cache from csv input with these columns:
-        address_id: str
-        canonical_id: str
-        original_line: str
-        result_line: str
-        country: str
-        lat: float
-        lon: float
-        geocoder: str
-        geocoder_place_id: str | None = None
-        geocoder_raw: str | None = None
-        nuts0_id: str | None = None
-        nuts1_id: str | None = None
-        nuts2_id: str | None = None
+    Populate cache from csv input with these columns:\n
+        address_id: str\n
+        canonical_id: str\n
+        original_line: str\n
+        result_line: str\n
+        country: str\n
+        lat: float\n
+        lon: float\n
+        geocoder: str\n
+        geocoder_place_id: str | None = None\n
+        geocoder_raw: str | None = None\n
+        nuts0_id: str | None = None\n
+        nuts1_id: str | None = None\n
+        nuts2_id: str | None = None\n
         nuts3_id: str | None = None
     """
     reader = csv.DictReader(input_file)
@@ -226,14 +233,22 @@ def cache_populate(
 
 @cli_cache.command("apply-csv")
 def cache_apply_csv(
-    input_file: typer.FileText = typer.Option("-", "-i", help="Input file"),
-    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="Output file"),
-    output_format: Formats = typer.Option(Formats.ftm.value, help="Output format"),
-    include_raw: bool = typer.Option(False, help="Include geocoder raw response"),
-    address_column: str = typer.Option("address", help="Column name for address line"),
-    country_column: str = typer.Option("country", help="Column name for country"),
-    language_column: str = typer.Option("language", help="Column name for language"),
-    get_missing: bool = typer.Option(False, help="Only output unmatched address data."),
+    input_file: Opts.IN,
+    output_file: Opts.OUT,
+    output_format: Opts.FORMATS,
+    include_raw: Opts.RAW,
+    address_column: Annotated[
+        str, typer.Option("address", help="Column name for address line")
+    ],
+    country_column: Annotated[
+        str, typer.Option("country", help="Column name for country")
+    ],
+    language_column: Annotated[
+        str, typer.Option("language", help="Column name for language")
+    ],
+    get_missing: Annotated[
+        bool, typer.Option(False, help="Only output unmatched address data.")
+    ],
 ):
     """
     Apply geocoding results from cache only ("dry" geocoding) to a csv input stream

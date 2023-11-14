@@ -12,13 +12,13 @@ from geopy.exc import GeocoderQueryError, GeocoderServiceError
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import get_geocoder_for_service
 
-from . import settings
-from .cache import get_cache
-from .io import Formats
-from .logging import get_logger
-from .model import Address, GeocodingResult, get_address_id, get_canonical_id
-from .settings import GEOCODERS
-from .util import (
+from ftm_geocode import settings
+from ftm_geocode.cache import get_cache
+from ftm_geocode.io import Formats
+from ftm_geocode.logging import get_logger
+from ftm_geocode.model import Address, GeocodingResult, get_address_id, get_canonical_id
+from ftm_geocode.settings import GEOCODERS
+from ftm_geocode.util import (
     apply_address,
     get_country_name,
     get_proxy_addresses,
@@ -134,7 +134,6 @@ def geocode_line(
     verbose_log: bool | None = False,
     **ctx: GeocodingContext,
 ) -> GeocodingResult | None:
-
     # look in cache
     if use_cache:
         cache = get_cache()

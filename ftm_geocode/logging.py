@@ -9,7 +9,7 @@ from structlog.types import Processor
 
 def configure_logging(
     level: int | str | None = logging.DEBUG,
-    extra_processors: list[Processor] = [],
+    extra_processors: list[Processor] = None,
 ) -> None:
     """Configure log levels and structured logging."""
     processors: list[Processor] = [
@@ -22,7 +22,8 @@ def configure_logging(
         structlog.processors.UnicodeDecoder(),
         merge_contextvars,
     ]
-    processors.extend(extra_processors)
+    if processors:
+        processors.extend(extra_processors)
     renderer = structlog.dev.ConsoleRenderer(
         exception_formatter=structlog.dev.plain_traceback
     )

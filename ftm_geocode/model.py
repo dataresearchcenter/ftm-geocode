@@ -8,11 +8,11 @@ from followthemoney import model
 from followthemoney.proxy import E, EntityProxy
 from followthemoney.util import join_text, make_entity_id
 from normality import collapse_spaces, normalize
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, create_model, field_validator
 
-from .nuts import get_nuts
-from .settings import GEOCODERS
-from .util import (
+from ftm_geocode.nuts import get_nuts
+from ftm_geocode.settings import GEOCODERS
+from ftm_geocode.util import (
     clean_country_codes,
     clean_country_names,
     format_line,
@@ -39,11 +39,7 @@ class GeocodingResult(BaseModel):
     ts: datetime
 
     def apply_nuts(self):
-        if (
-            not self.nuts1_id  # noqa
-            or not self.nuts2_id  # noqa
-            or not self.nuts3_id  # noqa
-        ):
+        if not self.nuts1_id or not self.nuts2_id or not self.nuts3_id:
             nuts = get_nuts(self.lon, self.lat)
             if nuts is not None:
                 self.nuts1_id = nuts.nuts1_id
@@ -53,18 +49,30 @@ class GeocodingResult(BaseModel):
     def ensure_canonical_id(self):
         self.canonical_id = get_address_id(self)
 
+    @field_validator("geocoder_place_id", mode="before")
+    @classmethod
+    def to_str(cls, value) -> str | None:
+        if not value:
+            return
+        return str(value)
+
 
 # https://github.com/openvenues/libpostal#parser-labels
 # postal -> ftm
 # FIXME extend ftm schema to align with postal output?
 MAPPING = (
-    # venue name e.g. "Brooklyn Academy of Music", and building names e.g. "Empire State Building"
+    # venue name e.g. "Brooklyn Academy of Music", and building names
+    # e.g. "Empire State Building"
     ("house", "remarks"),
     # for category queries like "restaurants", etc.
     ("category", "keywords"),
-    # phrases like "in", "near", etc. used after a category phrase to help with parsing queries like "restaurants in Brooklyn"
+    # phrases like "in", "near", etc. used after a category phrase to help with parsing
+    # queries like "restaurants in Brooklyn"
     ("near", "remarks"),
-    # usually refers to the external (street-facing) building number. In some countries this may be a compount, hyphenated number which also includes an apartment number, or a block number (a la Japan), but libpostal will just call it the house_number for simplicity.
+    # usually refers to the external (street-facing) building number. In some countries
+    # this may be a compound, hyphenated number which also includes an apartment number,
+    # or a block number (a la Japan), but libpostal will just call it the house_number
+    # for simplicity.
     ("house_number", "remarks"),
     # street name(s)
     ("road", "street"),
@@ -80,9 +88,11 @@ MAPPING = (
     ("po_box", "postOfficeBox"),
     # postal codes used for mail sorting
     ("postcode", "postalCode"),
-    # usually an unofficial neighborhood name like "Harlem", "South Bronx", or "Crown Heights"
+    # usually an unofficial neighborhood name like "Harlem", "South Bronx", or
+    # "Crown Heights"
     ("suburb", "remarks"),
-    # these are usually boroughs or districts within a city that serve some official purpose e.g. "Brooklyn" or "Hackney" or "Bratislava IV"
+    # these are usually boroughs or districts within a city that serve some official
+    # purpose e.g. "Brooklyn" or "Hackney" or "Bratislava IV"
     ("city_district", "remarks"),
     # any human settlement including cities, towns, villages, hamlets, localities, etc.
     ("city", "city"),
@@ -90,14 +100,17 @@ MAPPING = (
     ("island", "region"),
     # usually a second-level administrative division or county.
     ("state_district", "region"),
-    # a first-level administrative division. Scotland, Northern Ireland, Wales, and England in the UK are mapped to "state" as well (convention used in OSM, GeoPlanet, etc.)
+    # a first-level administrative division. Scotland, Northern Ireland, Wales, and
+    # England in the UK are mapped to "state" as well (convention used in OSM,
+    # GeoPlanet, etc.)
     ("state", "state"),
     # informal subdivision of a country without any political status
     ("country_region", "region"),
     # sovereign nations and their dependent territories, anything with an ISO-3166 code.
     ("country", "country"),
     ("country_code", "country"),
-    # currently only used for appending “West Indies” after the country name, a pattern frequently used in the English-speaking Caribbean e.g. “Jamaica, West Indies”
+    # currently only used for appending “West Indies” after the country name, a pattern
+    # frequently used in the English-speaking Caribbean e.g. “Jamaica, West Indies”
     ("world_region", "region"),
 )
 
@@ -190,9 +203,6 @@ FtmAddressBase: AddressBase = create_model(
 class Address(FtmAddressBase):
     _id: str | None = None
     _postal: PostalAddress | None = None
-
-    class Config:
-        underscore_attrs_are_private = True
 
     def get_id(self) -> str:
         # use place ids to generate ids

@@ -13,9 +13,9 @@ from followthemoney.proxy import E
 from pydantic import BaseModel
 from shapely.geometry import Point
 
-from .logging import get_logger
-from .settings import NUTS_DATA
-from .util import get_country_name
+from ftm_geocode.logging import get_logger
+from ftm_geocode.settings import NUTS_DATA
+from ftm_geocode.util import get_country_name
 
 log = get_logger(__name__)
 

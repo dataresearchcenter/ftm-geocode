@@ -7,10 +7,10 @@ from dataset.table import Table
 from followthemoney.util import make_entity_id
 from normality import normalize
 
-from .logging import get_logger
-from .model import GeocodingResult, PostalContext, get_address_id
-from .settings import CACHE_TABLE, DATABASE_URI
-from .util import normalize as unormalize
+from ftm_geocode.logging import get_logger
+from ftm_geocode.model import GeocodingResult, PostalContext, get_address_id
+from ftm_geocode.settings import CACHE_TABLE, DATABASE_URI
+from ftm_geocode.util import normalize as unormalize
 
 log = get_logger(__name__)
 
@@ -104,11 +104,6 @@ def get_cache():
 
 @lru_cache(10_000)
 def _lru_from_cache(address_line: str, **ctx: PostalContext) -> GeocodingResult | None:
-    info = _lru_from_cache.cache_info()
-    if int(info.hits) and int(info.hits / 1000) % 100 == 0:
-        log.info(
-            f"Cache hits: {info.hits}, misses: {info.misses}, currsize: {info.currsize}"
-        )
     c = get_cache()
     cache_key = get_cache_key(address_line, **ctx)
     table = c.get_table()

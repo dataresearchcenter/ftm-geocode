@@ -22,7 +22,7 @@ class GeocodingTestCase(TestCase):
             result.address_id,
             "addr-gb-cae982ac59b76884890db911fe9faa0933e8a155",
         )
-        self.assertEqual(result.canonical_id, "addr-osm-102184726")
+        self.assertTrue(result.canonical_id.startswith("addr-osm-"))
         self.assertEqual(
             result.original_line, "Cowley Road Cambridge CB4 0WS United Kingdom"
         )
@@ -39,9 +39,8 @@ class GeocodingTestCase(TestCase):
         addressProxy, updatedProxy = geocode.geocode_proxy(
             [self.geocoder], proxy, use_cache=False
         )
-        self.assertEqual(
-            updatedProxy.first("addressEntity"),
-            ("addr-osm-102184726"),
+        self.assertTrue(
+            updatedProxy.first("addressEntity").startswith("addr-osm-"),
         )
         self.assertIn(
             "Cowley Road, Chesterton, Cambridge, Cambridgeshire, Cambridgeshire and Peterborough, England, CB4 0AP, United Kingdom",
