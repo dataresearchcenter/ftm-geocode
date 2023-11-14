@@ -10,4 +10,4 @@ COPY VERSION /app/ftm-geocode/
 
 WORKDIR /app/ftm-geocode
 RUN pip install -U pip setuptools
-RUN pip install -e ".[postal]"
+RUN pip install ".[postal]"
