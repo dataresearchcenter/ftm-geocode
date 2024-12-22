@@ -1,51 +1,19 @@
-from functools import cache
 from typing import Any, Generator, Iterable
 from unicodedata import normalize as _unormalize
 
-import countrynames
-import pycountry
 from addressformatting import AddressFormatter
 from banal import ensure_list
-from followthemoney.proxy import E
 from followthemoney.types import registry
+from ftmq.util import get_country_code, get_country_name
+from nomenklatura.entity import CE
 from normality import collapse_spaces
 from normality import normalize as _normalize
 
-
-@cache
-def get_formatter() -> AddressFormatter:
-    return AddressFormatter()
+formatter = AddressFormatter()
 
 
 def format_line(data: dict[str, str | None], country: str) -> str:
-    return get_formatter().one_line(data, country)
-
-
-@cache
-def get_country_code(value: str | None) -> str | None:
-    if value is None:
-        return
-    code = countrynames.to_code(value)
-    if code is not None:
-        return code
-    try:
-        results = pycountry.countries.search_fuzzy(value)
-        for result in results:
-            return result.alpha_2
-    except LookupError:
-        return
-
-
-@cache
-def get_country_name(code: str | None) -> str | None:
-    if code is None:
-        return
-    code = get_country_code(code)
-    try:
-        country = pycountry.countries.get(alpha_2=code)
-        return country.name
-    except (LookupError, AttributeError):
-        return
+    return formatter.one_line(data, country)
 
 
 def get_first(value: str | Iterable[Any] | None, default: Any | None = None) -> Any:
@@ -82,7 +50,7 @@ def normalize_google(value: str) -> str:
     return ", ".join(_normalize(v, lowercase=False) for v in value.split(","))
 
 
-def get_proxy_addresses(proxy: E) -> Generator[str, None, None]:
+def get_proxy_addresses(proxy: CE) -> Generator[str, None, None]:
     if proxy.schema.is_a("Address"):
         yield proxy.caption
     else:
@@ -90,7 +58,7 @@ def get_proxy_addresses(proxy: E) -> Generator[str, None, None]:
             yield value
 
 
-def apply_address(proxy: E, address: E, rewrite_id: bool | None = True) -> E:
+def apply_address(proxy: CE, address: CE, rewrite_id: bool | None = True) -> CE:
     if proxy.schema.is_a("Address"):
         if rewrite_id:
             proxy.id = address.id
