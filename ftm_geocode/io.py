@@ -1,146 +1,113 @@
 import csv
-from enum import Enum
-from typing import Any, Generator, Literal
+from enum import StrEnum
+from typing import Any, Generator, Iterator, TypeAlias
 
-import orjson
-import typer
-from banal import ensure_dict, ensure_list
-from followthemoney import model
-from followthemoney.proxy import E
+from anystore.io import SmartHandler, Uri, smart_open
+from anystore.util import ensure_uri
+from anystore.worker import Writer as _Writer
+from ftmq.util import get_country_code
+from pydantic import BaseModel, ConfigDict
 
 from ftm_geocode.logging import get_logger
-from ftm_geocode.model import Address, GeocodingResult
+from ftm_geocode.model import GeocodingResult, PostalContext
 
 log = get_logger(__name__)
 
 
-class Formats(Enum):
+class Formats(StrEnum):
     csv = "csv"
     ftm = "ftm"
 
 
-Row = tuple[str, str | None, str | None, ...]
-CoordsRow = tuple[str, str, ...]
-DictRow = dict[str, Any]
+class PostalRow(BaseModel):
+    original_line: str
+    country: str | None = None
+    language: str | None = None
+
+    model_config = ConfigDict(extra="allow")
+
+    @property
+    def ctx(self) -> PostalContext:
+        return {"country": get_country_code(self.country), "language": self.language}
 
 
-def dump_proxy(proxy: E) -> str:
-    return orjson.dumps(proxy.to_dict(), option=orjson.OPT_APPEND_NEWLINE).decode()
+class LatLonRow(BaseModel):
+    lat: float
+    lon: float
+
+    model_config = ConfigDict(extra="allow")
 
 
-def read_ftm(input_file: typer.FileText) -> Generator[E, None, None]:
-    while True:
-        line = input_file.readline()
-        if not line:
-            break
-        yield model.get_proxy(orjson.loads(line))
+PostalRows: TypeAlias = Generator[PostalRow, None, None]
+LatLonRows: TypeAlias = Generator[LatLonRow, None, None]
+GeocodingResults: TypeAlias = (
+    Generator[GeocodingResult, None, None] | Iterator[GeocodingResult]
+)
 
 
-def write_ftm(output_file: typer.FileTextWrite, **kwargs):
-    def _write(data: GeocodingResult | E, **kwargs):
-        if isinstance(data, GeocodingResult):
-            address = Address.from_result(data)
-            proxy = address.to_proxy()
-            output_file.write(dump_proxy(proxy))
+class Writer(_Writer):
+    def __init__(self, uri: Uri, output_format: Formats = Formats.ftm) -> None:
+        super().__init__(uri)
+        self.output_format = output_format
+        self.fieldnames = []
+        self.handler = None
+        self.writer = None
+
+    def write(self, data: Any) -> None:
+        if self.output_format == Formats.csv and not self.fieldnames:
+            self.fieldnames = data.keys()
+            if self.can_write_parallel:
+                self.handler = SmartHandler(self.uri, mode="a")
+                self.writer = csv.DictWriter(self.handler.open(), self.fieldnames)
+                self.writer.writeheader()
+
+        super().write(data)
+
+    def _write_flush(self) -> None:
+        if self.output_format == Formats.csv:
+            with smart_open(ensure_uri(self.uri), mode="w") as f:
+                writer = csv.DictWriter(f, fieldnames=self.fieldnames)
+                writer.writeheader()
+                writer.writerows(self.buffer)
         else:
-            output_file.write(dump_proxy(data))
+            super()._write_flush()
 
-    return _write
+    def _write_parallel(self, data: Any) -> None:
+        if self.output_format == Formats.csv:
+            if self.writer is not None:
+                self.writer.writerow(data)
+        else:
+            super()._write_parallel(data)
 
-
-def read_csv(
-    input_file: typer.FileText, header: bool = True
-) -> Generator[Row, None, None]:
-    reader = csv.reader(input_file)
-    if header:
-        next(reader)
-    for row in reader:
-        address, *rest = row
-        country, language = None, None
-        if len(rest):
-            country, *rest = rest
-            if len(rest):
-                language, *rest = rest
-            else:
-                language = country
-        yield address, country, language, *rest
+    def flush(self) -> None:
+        if self.handler is not None:
+            self.handler.close()
+        super().flush()
 
 
-def read_coords_csv(
-    input_file: typer.FileText, header: bool = True
-) -> Generator[dict[str, Any], None, None]:
-    if header:
-        reader = csv.DictReader(input_file)
-        x, y = None, None
-        if "lon" in reader.fieldnames and "lat" in reader.fieldnames:
-            x, y = "lon", "lat"
-        elif "longitude" in reader.fieldnames and "latitude" in reader.fieldnames:
-            x, y = "longitude", "latitude"
+def read_postal_csv(input_uri: Uri) -> PostalRows:
+    with smart_open(input_uri, mode="r") as f:
+        reader = csv.DictReader(f)
         for row in reader:
-            lon, lat = row.get(x), row.get(y)
-            if lon is None or lat is None:
-                log.error("No coordinates")
-            else:
-                yield lon, lat, row
-    else:
-        reader = csv.reader(input_file)
-        for lon, lat, *rest in reader:
-            yield lon, lat, *rest
+            yield PostalRow(**row)
 
 
-def write_csv(
-    output_file: typer.FileTextWrite,
-    include_raw: bool | None = False,
-    extra_fields: list[str] | None = None,
-):
-    fieldnames = GeocodingResult.__fields__.keys()
-    if not include_raw:
-        fieldnames = [
-            f for f in fieldnames if f not in ("ts", "geocoder_raw", "cache_key")
-        ]
-    if extra_fields:
-        fieldnames = fieldnames + [
-            f for f in ensure_list(extra_fields) if f not in fieldnames
-        ]
-
-    writer = csv.DictWriter(output_file, fieldnames=fieldnames)
-    writer.writeheader()
-
-    def _write(
-        result: GeocodingResult | None = None, extra_data: dict[str, str] | None = None
-    ):
-        if result is not None:
-            data = {**ensure_dict(extra_data), **result.dict()}
-        else:
-            data = extra_data
-        data = {k: v for k, v in data.items() if k in fieldnames}
-        writer.writerow(data)
-
-    return _write
+def read_latlon_csv(input_uri: Uri) -> LatLonRows:
+    with smart_open(input_uri, mode="r") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            yield LatLonRow(**row)
 
 
-def get_reader(
-    input_file: typer.FileText, input_format: Formats, **kwargs
-) -> Literal[read_ftm, read_csv]:
-    if input_format == Formats.ftm:
-        return read_ftm(input_file)
-    if input_format == Formats.csv:
-        return read_csv(input_file, **kwargs)
+def write_geocode_results(output_uri: Uri, results: GeocodingResults) -> None:
+    with smart_open(output_uri, "w") as f:
+        writer = csv.DictWriter(f, fieldnames=GeocodingResult.model_fields)
+        writer.writeheader()
+        writer.writerows(r.model_dump(mode="json") for r in results)
 
 
-def get_writer(
-    output_file: typer.FileTextWrite, output_format: Formats, **kwargs
-) -> Literal[write_ftm, write_csv]:
-    if output_format == Formats.ftm:
-        return write_ftm(output_file, **kwargs)
-    if output_format == Formats.csv:
-        return write_csv(output_file, **kwargs)
-
-
-def get_coords_reader(
-    input_file: typer.FileText, input_format: Formats, **kwargs
-) -> Literal[read_ftm, read_coords_csv]:
-    if input_format == Formats.ftm:
-        return read_ftm(input_file)
-    if input_format == Formats.csv:
-        return read_coords_csv(input_file, **kwargs)
+def read_geocode_results_csv(input_uri: Uri) -> GeocodingResults:
+    with smart_open(input_uri, "r") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            yield GeocodingResult(**row)

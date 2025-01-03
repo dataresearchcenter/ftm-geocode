@@ -67,4 +67,5 @@ def apply_address(proxy: CE, address: CE, rewrite_id: bool | None = True) -> CE:
         return proxy.merge(address)
     proxy.add("addressEntity", address.id)  # FIXME delete old reference?
     proxy.add("address", address.caption)
+    proxy.add("country", address.get("country"))
     return proxy

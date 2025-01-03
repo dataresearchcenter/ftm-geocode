@@ -1,6 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
+from anystore.model import StoreModel
 from anystore.settings import Settings as Anystore
 from geopy.geocoders import SERVICE_TO_GEOCODER
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,7 +11,7 @@ from ftm_geocode import __version__
 anystore = Anystore()
 
 NUTS = Path(__file__).parent.parent / "data" / "NUTS_RG_01M_2021_4326.shp.zip"
-GEOCODERS = Enum("Geocoders", ((k, k) for k in SERVICE_TO_GEOCODER.keys()))
+GEOCODERS = StrEnum("Geocoders", ((k, k) for k in SERVICE_TO_GEOCODER.keys()))
 
 
 class Settings(BaseSettings):
@@ -38,11 +39,17 @@ class Settings(BaseSettings):
     max_retries: int = 5
     """Maximum retries for geocoding"""
 
-    cache_uri: str = anystore.uri
+    cache: StoreModel = StoreModel(uri=anystore.uri)
     """Cache uri (using anystore)"""
+
+    cache_prefix: str = "ftmgeo"
+    """Cache prefix"""
 
     nuts_data: Path = NUTS
     """Location for nuts shapefile data"""
 
     geocoders: list[GEOCODERS] = [GEOCODERS.nominatim]
     """Default geocoders to use (in order)"""
+
+    libpostal: bool = False
+    """Activate libpostal (requires additional install)"""

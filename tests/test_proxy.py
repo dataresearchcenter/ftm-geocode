@@ -1,6 +1,7 @@
 from unittest import TestCase
 
-from followthemoney import model
+from ftmq.util import make_proxy
+from normality import collapse_spaces
 
 from ftm_geocode import util
 from ftm_geocode.model import Address
@@ -11,17 +12,18 @@ ADDR = """ OpenStreetMap Foundation
            Cambridge
            CB4 0WS
            United Kingdom"""
+ADDR = collapse_spaces(ADDR)
 
 
 class ProxyTestCase(TestCase):
-    entity = model.get_proxy(
+    entity = make_proxy(
         {
             "id": "ent",
             "schema": "LegalEntity",
             "properties": {"address": [ADDR]},
         }
     )
-    addressEntity = model.get_proxy(
+    addressEntity = make_proxy(
         {
             "id": "addr",
             "schema": "Address",

@@ -8,6 +8,6 @@ def test_settings():
     assert settings.default_timeout == 10
     assert settings.min_delay_seconds == 0.5
     assert settings.max_retries == 5
-    assert settings.cache_uri == ".anystore"
+    assert settings.cache.uri == "memory:"
     assert settings.nuts_data.name == "NUTS_RG_01M_2021_4326.shp.zip"
     assert settings.geocoders == [GEOCODERS.nominatim]

@@ -15,7 +15,7 @@ typecheck:
 	poetry run mypy --strict ftm_geocode
 
 test:
-	poetry run pytest -v --capture=sys --cov=ftm_geocode --cov-report term-missing
+	poetry run pytest -v --capture=sys --cov=ftm_geocode --cov-report lcov
 
 build:
 	poetry run build

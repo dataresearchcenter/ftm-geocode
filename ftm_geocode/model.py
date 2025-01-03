@@ -1,17 +1,21 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, TypedDict
+from typing import Any, Self, TypeAlias, TypedDict
 
 import lazy_import
-from banal import clean_dict
+import orjson
+from anystore.util import clean_dict
+from banal import is_mapping
 from followthemoney import model
-from followthemoney.proxy import E, EntityProxy
 from followthemoney.util import join_text, make_entity_id
+from ftmq.util import clean_string, make_proxy
+from nomenklatura.entity import CE, CompositeEntity
 from normality import collapse_spaces, normalize
-from pydantic import BaseModel, create_model, field_validator
+from pydantic import BaseModel, create_model, field_validator, model_validator
 
+from ftm_geocode.cache import make_cache_key
 from ftm_geocode.nuts import get_nuts
-from ftm_geocode.settings import GEOCODERS
+from ftm_geocode.settings import GEOCODERS, Settings
 from ftm_geocode.util import (
     clean_country_codes,
     clean_country_names,
@@ -19,6 +23,9 @@ from ftm_geocode.util import (
     get_country_code,
     get_first,
 )
+
+settings = Settings()
+USE_LIBPOSTAL = settings.libpostal
 
 
 class GeocodingResult(BaseModel):
@@ -32,13 +39,18 @@ class GeocodingResult(BaseModel):
     lat: float
     geocoder: str
     geocoder_place_id: str | None = None
-    geocoder_raw: str | None = None
+    geocoder_raw: dict[str, Any] | None = None
     nuts1_id: str | None = None
     nuts2_id: str | None = None
     nuts3_id: str | None = None
-    ts: datetime
+    ts: datetime | None = None
 
-    def apply_nuts(self):
+    @property
+    def nuts(self) -> tuple[str, str, str] | None:
+        if self.nuts1_id:
+            return (self.nuts1_id, self.nuts2_id, self.nuts3_id)
+
+    def apply_nuts(self) -> None:
         if not self.nuts1_id or not self.nuts2_id or not self.nuts3_id:
             nuts = get_nuts(self.lon, self.lat)
             if nuts is not None:
@@ -46,15 +58,37 @@ class GeocodingResult(BaseModel):
                 self.nuts2_id = nuts.nuts2_id
                 self.nuts3_id = nuts.nuts3_id
 
-    def ensure_canonical_id(self):
+    def apply_cache_key(self) -> None:
+        self.cache_key = make_cache_key(self.original_line, country=self.country)
+
+    def ensure_canonical_id(self) -> None:
         self.canonical_id = get_address_id(self)
+
+    def to_proxy(self) -> CE:
+        address = Address.from_result(self)
+        proxy = address.to_proxy()
+        proxy.add("region", self.nuts)
+        return proxy
+
+    @model_validator(mode="after")
+    def ensure_cache_key(self) -> Self:
+        if not self.cache_key:
+            self.apply_cache_key()
+        return self
 
     @field_validator("geocoder_place_id", mode="before")
     @classmethod
     def to_str(cls, value) -> str | None:
-        if not value:
-            return
-        return str(value)
+        return clean_string(value)
+
+    @field_validator("geocoder_raw", mode="before")
+    @classmethod
+    def to_dict(cls, value: Any) -> dict[str, Any]:
+        if is_mapping(value):
+            return value
+        if isinstance(value, (str, bytes)):
+            return orjson.loads(value)
+        return {}
 
 
 # https://github.com/openvenues/libpostal#parser-labels
@@ -120,8 +154,8 @@ Values = list[str] | None
 
 
 class PostalContext(TypedDict):
-    language: str | None = ""
-    country: str | None = ""
+    language: str | None
+    country: str | None
 
 
 class AddressBase(BaseModel):
@@ -156,7 +190,7 @@ class PostalAddressBase(AddressBase):
             "attention": self.get_first("near"),
             "house": join_text(self.get_first("house"), self.get_first("po_box")),
             "house_number": self.get_first("house_number"),
-            "road": self.get_first("street"),
+            "road": self.get_first("street") or self.get_first("road"),
             "postcode": self.get_first("postcode"),
             "city": self.get_first("city"),
             "state": self.get_first("state"),
@@ -165,7 +199,7 @@ class PostalAddressBase(AddressBase):
         return format_line(data, country=country)
 
     def to_dict(self) -> dict[str, str]:
-        return clean_dict({k: get_first(v) for k, v in self.dict().items()})
+        return clean_dict({k: get_first(v) for k, v in self.model_dump().items()})
 
     @classmethod
     def from_postal_result(
@@ -180,10 +214,13 @@ class PostalAddressBase(AddressBase):
 
     @classmethod
     def from_string(cls, value: str, **ctx: PostalContext) -> "PostalAddress":
-        parse_address = lazy_import.lazy_callable("postal.parser.parse_address")
-        # postal screams if language or country is None
-        ctx = {k: ctx.get(k, "") for k in ("language", "country")}
-        result = parse_address(value, **ctx)
+        if USE_LIBPOSTAL:
+            parse_address = lazy_import.lazy_callable("postal.parser.parse_address")
+            # postal screams if language or country is None
+            ctx = {k: ctx.get(k, "") for k in ("language", "country")}
+            result = parse_address(value, **ctx)
+        else:
+            result = [(value, "road")]  # FIXME
         return cls.from_postal_result(result, **ctx)
 
 
@@ -194,7 +231,7 @@ PostalAddress: PostalAddressBase = create_model(
 )
 
 FtmAddressBase: AddressBase = create_model(
-    "FtmAddress",
+    "FtmAddressBase",
     **{p: (Values, None) for p in model.get("Address").properties},
     __base__=AddressBase,
 )
@@ -215,12 +252,12 @@ class Address(FtmAddressBase):
             return f"addr-google-{googlePlaceId}"
         return super().get_id()
 
-    def to_proxy(self) -> E:
-        return model.get_proxy(
+    def to_proxy(self) -> CE:
+        return make_proxy(
             {
                 "id": self.get_id(),
                 "schema": "Address",
-                "properties": clean_dict(self.dict()),
+                "properties": clean_dict(self.model_dump()),
             }
         )
 
@@ -231,7 +268,7 @@ class Address(FtmAddressBase):
                 " ".join((self.get_first("summary", ""), " ".join(self.remarks or [])))
             ),
             "house": self.get_first("postOfficeBox"),
-            "street": self.get_first("street"),
+            "road": self.get_first("road") or self.get_first("street"),
             "postcode": self.get_first("postalCode"),
             "city": self.get_first("city"),
             "state": self.get_first("state"),
@@ -271,14 +308,14 @@ class Address(FtmAddressBase):
         return address
 
     @classmethod
-    def from_proxy(cls, proxy: E) -> "Address":
+    def from_proxy(cls, proxy: CE) -> "Address":
         data = proxy.to_dict()
         address = cls(**data["properties"])
         address._id = proxy.id
         return address
 
 
-AddressInput = str | Address | PostalAddress | E | GeocodingResult
+AddressInput: TypeAlias = str | Address | PostalAddress | CE | GeocodingResult
 
 
 def get_address(data: AddressInput, **ctx: PostalContext) -> Address:
@@ -286,7 +323,7 @@ def get_address(data: AddressInput, **ctx: PostalContext) -> Address:
         return Address.from_string(data, **ctx)
     if isinstance(data, PostalAddress):
         return Address.from_postal(data, **ctx)
-    if isinstance(data, EntityProxy):
+    if isinstance(data, CompositeEntity):
         return Address.from_proxy(data)
     if isinstance(data, GeocodingResult):
         return Address.from_result(data)
@@ -301,7 +338,7 @@ def get_components(data: AddressInput, **ctx: PostalContext) -> dict[str, str | 
 
     if isinstance(data, str):
         data = PostalAddress.from_string(data, **ctx)
-    elif isinstance(data, EntityProxy):
+    elif isinstance(data, CompositeEntity):
         data = PostalAddress.from_string(data.caption, **ctx)
     elif isinstance(data, GeocodingResult):
         data = PostalAddress.from_string(GeocodingResult.result_line, **ctx)
