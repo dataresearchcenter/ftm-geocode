@@ -21,7 +21,7 @@ class IOWorker(WriteWorker):
         input_format: Formats | None = Formats.ftm,
         output_format: Formats | None = Formats.ftm,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.input_format = input_format
@@ -49,16 +49,16 @@ class GeocodeWorker(IOWorker):
         self,
         use_cache: bool | None = True,
         cache_only: bool | None = False,
-        geocoder: list[GEOCODERS] = settings.geocoders,
+        geocoders: list[GEOCODERS] = settings.geocoders,
         rewrite_ids: bool | None = False,
         apply_nuts: bool | None = False,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.use_cache = use_cache
         self.cache_only = cache_only
-        self.geocoder = geocoder
+        self.geocoders = geocoders
         self.rewrite_ids = rewrite_ids
         self.apply_nuts = apply_nuts
 
@@ -66,7 +66,7 @@ class GeocodeWorker(IOWorker):
         res = None
         if self.input_format == Formats.ftm:
             res = geocode_proxy(
-                self.geocoder,
+                self.geocoders,
                 task,
                 use_cache=self.use_cache,
                 cache_only=self.cache_only,
@@ -76,7 +76,7 @@ class GeocodeWorker(IOWorker):
             )
         elif self.input_format == Formats.csv:
             res = geocode_line(
-                self.geocoder,
+                self.geocoders,
                 task.original_line,
                 use_cache=self.use_cache,
                 cache_only=self.cache_only,
@@ -124,7 +124,7 @@ class CachePopulateWorker(Worker):
         apply_nuts: bool | None = False,
         ensure_ids: bool | None = False,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.cache = get_cache()

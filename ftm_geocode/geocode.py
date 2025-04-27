@@ -140,14 +140,13 @@ def _geocode(
 
 
 def geocode_line(
-    geocoder: list[GEOCODERS],
+    geocoders: list[GEOCODERS],
     value: str,
     use_cache: bool | None = True,
     cache_only: bool | None = False,
     apply_nuts: bool | None = False,
     **ctx: GeocodingContext,
 ) -> GeocodingResult | None:
-    geocoders = geocoder
     cleaned_value = collapse_spaces(value)
     if cleaned_value:
         for geocoder in geocoders:
@@ -163,7 +162,7 @@ def geocode_line(
                     result.apply_nuts()
                 return result
 
-    log.warning(f"No geocoding match found: `{value}`", geocoder=geocoder)
+    log.warning(f"No geocoding match found: `{value}`", geocoders=geocoders)
 
 
 def geocode_proxy(

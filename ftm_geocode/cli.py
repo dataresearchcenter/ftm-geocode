@@ -40,7 +40,7 @@ class Opts:
     IN = typer.Option("-", "-i", help="Input uri (file, http, s3...)")
     OUT = typer.Option("-", "-o", help="Output uri (file, http, s3...)")
     FORMATS = typer.Option(Formats.ftm)
-    GEOCODERS = typer.Option(settings.geocoders, "--geocoder", "-g")
+    GEOCODERS = typer.Option(settings.geocoders, "--geocoders", "-g")
     APPLY_NUTS = typer.Option(False, help="Add EU nuts codes")
     ENSURE_IDS = typer.Option(
         False,
@@ -111,7 +111,7 @@ def geocode(
     input_format: Formats = Opts.FORMATS,
     output_uri: str = Opts.OUT,
     output_format: Formats = Opts.FORMATS,
-    geocoder: list[GEOCODERS] = Opts.GEOCODERS,
+    geocoders: list[GEOCODERS] = Opts.GEOCODERS,
     use_cache: Annotated[bool, typer.Option(help="Use cache database")] = True,
     cache_only: Annotated[bool, typer.Option(help="Only use cache database")] = False,
     rewrite_ids: Annotated[
@@ -141,7 +141,7 @@ def geocode(
             tasks=tasks,
             use_cache=use_cache,
             cache_only=cache_only,
-            geocoder=geocoder,
+            geocoders=geocoders,
             input_format=input_format,
             output_format=output_format,
             rewrite_ids=rewrite_ids,
