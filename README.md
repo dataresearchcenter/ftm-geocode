@@ -15,7 +15,7 @@ There are as well some parsing / normalization helpers.
 ## Features
 - Parse/normalize addresses via [libpostal](https://github.com/openvenues/libpostal)
 - Geocoding via [geopy](https://geopy.readthedocs.io/en/stable/)
-- Cache geocoding results in a sql database (using [dataset](https://github.com/pudo/dataset))
+- Cache geocoding results using [anystore](https://docs.investigraph.dev/lib/anystore)
 - Optional fallback geocoders when preferred geocoder doesn't match
 - Create, update and merge [`Address`](https://followthemoney.readthedocs.io/en/latest/model.html#address) entities for ftm data
 

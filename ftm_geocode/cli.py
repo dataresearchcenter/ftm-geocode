@@ -206,7 +206,7 @@ def cache_iterate(
             write_geocode_results(output_uri, results)
         else:
             proxies = (r.to_proxy() for r in results)
-            smart_write_proxies(output_uri, proxies, serialize=True)
+            smart_write_proxies(output_uri, proxies)
 
 
 @cli_cache.command("populate")
