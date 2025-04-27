@@ -1,4 +1,4 @@
-from functools import cache, lru_cache
+from functools import cache
 
 from anystore.store import BaseStore, get_store
 from followthemoney.util import make_entity_id
@@ -13,7 +13,6 @@ log = get_logger(__name__)
 settings = Settings()
 
 
-@lru_cache(64)
 def make_cache_key(value, **kwargs) -> str | None:
     if kwargs.get("use_cache") is False:
         return

@@ -25,7 +25,11 @@ class Settings(BaseSettings):
 
     """
 
-    model_config = SettingsConfigDict(env_prefix="ftmgeo_")
+    model_config = SettingsConfigDict(
+        env_prefix="ftmgeo_",
+        env_nested_delimiter="__",
+        nested_model_default_partial_update=True,
+    )
 
     user_agent: str = f"ftm-geocode v{__version__}"
     """User-Agent string to use for geocoding services"""
