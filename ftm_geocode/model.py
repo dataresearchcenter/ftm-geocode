@@ -95,6 +95,7 @@ class GeocodingResult(BaseModel):
 # postal -> ftm
 # FIXME extend ftm schema to align with postal output?
 MAPPING = (
+    ("full", "full"),  # used as dummy prop when USE_LIBPOSTAL=False
     # venue name e.g. "Brooklyn Academy of Music", and building names
     # e.g. "Empire State Building"
     ("house", "remarks"),
@@ -173,10 +174,11 @@ class AddressBase(BaseModel):
         return f"addr-{ident}"
 
     def to_dict(self) -> dict[str, list[str]]:
-        return clean_dict(self.dict())
+        return clean_dict(self.model_dump())
 
 
 class PostalAddressBase(AddressBase):
+    full: Values = None
     country_code: Values = None
 
     def __init__(self, **data):
@@ -221,7 +223,7 @@ class PostalAddressBase(AddressBase):
             ctx = {k: ctx.get(k, "") for k in ("language", "country")}
             result = parse_address(value, **ctx)
         else:
-            result = [(value, "road")]  # FIXME
+            result = [(value, "full")]
         return cls.from_postal_result(result, **ctx)
 
 
@@ -269,7 +271,9 @@ class Address(FtmAddressBase):
                 " ".join((self.get_first("summary", ""), " ".join(self.remarks or [])))
             ),
             "house": self.get_first("postOfficeBox"),
-            "road": self.get_first("road") or self.get_first("street"),
+            "road": self.get_first("road")
+            or self.get_first("street")
+            or self.get_first("full"),
             "postcode": self.get_first("postalCode"),
             "city": self.get_first("city"),
             "state": self.get_first("state"),
