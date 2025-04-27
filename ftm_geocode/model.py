@@ -12,6 +12,7 @@ from ftmq.util import clean_string, make_proxy
 from nomenklatura.entity import CE, CompositeEntity
 from normality import collapse_spaces, normalize
 from pydantic import BaseModel, create_model, field_validator, model_validator
+from rigour.addresses import clean_address, format_address_line
 
 from ftm_geocode.cache import make_cache_key
 from ftm_geocode.nuts import get_nuts
@@ -19,7 +20,6 @@ from ftm_geocode.settings import GEOCODERS, Settings
 from ftm_geocode.util import (
     clean_country_codes,
     clean_country_names,
-    format_line,
     get_country_code,
     get_first,
 )
@@ -196,7 +196,7 @@ class PostalAddressBase(AddressBase):
             "state": self.get_first("state"),
             "country": country,
         }
-        return format_line(data, country=country)
+        return format_address_line(data, country=country)
 
     def to_dict(self) -> dict[str, str]:
         return clean_dict({k: get_first(v) for k, v in self.model_dump().items()})
@@ -214,6 +214,7 @@ class PostalAddressBase(AddressBase):
 
     @classmethod
     def from_string(cls, value: str, **ctx: PostalContext) -> "PostalAddress":
+        value = clean_address(value)
         if USE_LIBPOSTAL:
             parse_address = lazy_import.lazy_callable("postal.parser.parse_address")
             # postal screams if language or country is None
@@ -273,7 +274,7 @@ class Address(FtmAddressBase):
             "city": self.get_first("city"),
             "state": self.get_first("state"),
         }
-        return format_line(data, country=country)
+        return format_address_line(data, country=country)
 
     @classmethod
     def from_postal(cls, input_data: PostalAddress, **ctx: PostalContext) -> "Address":
@@ -292,6 +293,7 @@ class Address(FtmAddressBase):
 
     @classmethod
     def from_string(cls, value: str, **ctx: PostalContext) -> "Address":
+        value = clean_address(value)
         return cls.from_postal(PostalAddress.from_string(value, **ctx))
 
     @classmethod

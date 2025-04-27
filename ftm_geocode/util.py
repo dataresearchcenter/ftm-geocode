@@ -1,19 +1,12 @@
 from typing import Any, Generator, Iterable
 from unicodedata import normalize as _unormalize
 
-from addressformatting import AddressFormatter
 from banal import ensure_list
 from followthemoney.types import registry
 from ftmq.util import get_country_code, get_country_name
 from nomenklatura.entity import CE
 from normality import collapse_spaces
 from normality import normalize as _normalize
-
-formatter = AddressFormatter()
-
-
-def format_line(data: dict[str, str | None], country: str) -> str:
-    return formatter.one_line(data, country)
 
 
 def get_first(value: str | Iterable[Any] | None, default: Any | None = None) -> Any:
