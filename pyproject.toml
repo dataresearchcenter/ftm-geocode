@@ -3,7 +3,7 @@ name = "ftm-geocode"
 version = "0.0.11"
 description = "Parsing and geocoding addresses for followthemoney entities powered by libpostal"
 authors = [{ name = "Simon Wörpel", email = "simon.woerpel@pm.me" }]
-license = "MIT"
+license = "AGPLv3+"
 readme = "README.md"
 classifiers = [
     "Intended Audience :: Developers",

@@ -161,3 +161,16 @@ Verify that this works without errors:
 
     make install
     make test
+
+
+## License and Copyright
+
+`ftm_geocode`, (C) 2023 Simon Wörpel
+`ftm_geocode`, (C) 2024-2025 investigativedata.io
+`ftm_geocode`, (C) 2025 Data and Research Center – DARC
+
+`ftm_geocode` is licensed under the AGPLv3 or later license.
+
+Prior to version 0.1.0, `ftm_geocode` was released under the MIT license.
+
+see [NOTICE](./NOTICE) and [LICENSE](./LICENSE)
