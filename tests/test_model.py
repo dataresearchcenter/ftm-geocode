@@ -26,7 +26,7 @@ class ModelTestCase(TestCase):
                     "street": ["Cowley Road"],
                     "city": ["Cambridge"],
                     "postalCode": ["Cb4 0Ws"],
-                    "country": ["GB"],
+                    "country": ["gb"],
                 },
             )
 
@@ -35,7 +35,8 @@ class ModelTestCase(TestCase):
             self.assertDictEqual(
                 proxy.to_dict(),
                 {
-                    "id": "addr-gb-c0e5062177a485e1881fcfbd2210d6d7f1d2d3bd",
+                    "id": "addr-gb-7305a0eaef6fdebc0f6bac6066fd1e26fd7fd54a",
+                    "caption": "Cambridge",
                     "schema": "Address",
                     "properties": {
                         "remarks": [
@@ -44,8 +45,10 @@ class ModelTestCase(TestCase):
                         "street": ["Cowley Road"],
                         "city": ["Cambridge"],
                         "postalCode": ["Cb4 0Ws"],
-                        "country": ["GB"],
+                        "country": ["gb"],
                     },
+                    "referents": [],
+                    "datasets": ["default"],
                 },
             )
 
@@ -59,7 +62,7 @@ class ModelTestCase(TestCase):
                 {
                     "remarks": ["737230", "Duda-Epureni"],
                     "street": ["Ro"],
-                    "country": ["RO"],
+                    "country": ["ro"],
                 },
             )
 
@@ -77,11 +80,10 @@ class ModelTestCase(TestCase):
             self.assertEqual(
                 address._postal.to_dict(),
                 {
-                    "country_code": "GB",
+                    "country_code": "gb",
                     "house": "Openstreetmap Foundation St John'S Innovation Centre",
                     "road": "Cowley Road",
                     "postcode": "Cb4 0Ws",
                     "city": "Cambridge",
-                    "country": "United Kingdom",
                 },
             )

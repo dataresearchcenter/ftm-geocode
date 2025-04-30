@@ -70,6 +70,10 @@ class Nuts3(BaseModel):
         )
 
 
+class ProxyNuts(Nuts3):
+    entity_id: str
+
+
 def split_nuts3(code: str) -> tuple[str, str, str, str]:
     # country, nuts1, nuts2, nuts3
     return code[:2], code[:3], code[:4], code[:5]
@@ -121,13 +125,17 @@ def get_nuts(lon: Any | None = None, lat: Any | None = None) -> Nuts3 | None:
         log.error("Invalid coordinates: (%s, %s)" % (lon, lat))
 
 
-def get_proxy_nuts(proxy: CE) -> Nuts3 | None:
+def get_proxy_nuts(proxy: CE) -> ProxyNuts | None:
     if not proxy.schema.is_a("Address"):
         return
     try:
-        lon, lat = float(proxy.first("longitude")), float(proxy.first("latitude"))
-        lon, lat = round(lon, 6), round(lat, 6)  # EU shapefile precision
-        return get_nuts(lon, lat)
+        lon, lat = proxy.first("longitude"), proxy.first("latitude")
+        if lon is not None and lat is not None:
+            lon, lat = float(lon), float(lat)
+            lon, lat = round(lon, 6), round(lat, 6)  # EU shapefile precision
+            nuts = get_nuts(lon, lat)
+            if nuts is not None:
+                return ProxyNuts(entity_id=proxy.id, **nuts.model_dump())
     except ValueError:
         log.error("Invalid coords", proxy=proxy.to_dict())
         return

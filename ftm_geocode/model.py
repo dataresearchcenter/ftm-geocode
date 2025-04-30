@@ -1,18 +1,19 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Self, TypeAlias, TypedDict
+from typing import Any, TypeAlias, TypedDict
 
 import lazy_import
 import orjson
 from anystore.util import clean_dict
 from banal import is_mapping
 from followthemoney import model
-from followthemoney.util import join_text, make_entity_id
+from followthemoney.util import join_text
+from ftmq.types import SDict
 from ftmq.util import clean_string, make_proxy
 from nomenklatura.entity import CE, CompositeEntity
-from normality import collapse_spaces, normalize
+from normality import collapse_spaces
 from pydantic import BaseModel, create_model, field_validator, model_validator
-from rigour.addresses import clean_address, format_address_line
+from rigour.addresses import clean_address, format_address_line, normalize_address
 
 from ftm_geocode.cache import make_cache_key
 from ftm_geocode.nuts import get_nuts
@@ -29,9 +30,8 @@ USE_LIBPOSTAL = settings.libpostal
 
 
 class GeocodingResult(BaseModel):
-    cache_key: str | None = None
+    cache_key: str
     address_id: str
-    canonical_id: str
     original_line: str
     result_line: str
     country: str
@@ -58,23 +58,19 @@ class GeocodingResult(BaseModel):
                 self.nuts2_id = nuts.nuts2_id
                 self.nuts3_id = nuts.nuts3_id
 
-    def apply_cache_key(self) -> None:
-        self.cache_key = make_cache_key(self.original_line, country=self.country)
-
-    def ensure_canonical_id(self) -> None:
-        self.canonical_id = get_address_id(self)
-
     def to_proxy(self) -> CE:
         address = Address.from_result(self)
         proxy = address.to_proxy()
         proxy.add("region", self.nuts)
         return proxy
 
-    @model_validator(mode="after")
-    def ensure_cache_key(self) -> Self:
-        if not self.cache_key:
-            self.apply_cache_key()
-        return self
+    @model_validator(mode="before")
+    @classmethod
+    def make_cache_key(cls, data: SDict) -> SDict:
+        data["cache_key"] = make_cache_key(
+            data["original_line"], country=data.get("country")
+        )
+        return data
 
     @field_validator("geocoder_place_id", mode="before")
     @classmethod
@@ -167,11 +163,10 @@ class AddressBase(BaseModel):
         return get_first(getattr(self, attr, None), default)
 
     def get_id(self) -> str:  # serves as cache key
-        ident = make_entity_id(normalize(self.get_formatted_line()))
-        country = self.get_first("country")
-        if country:
-            ident = f"{country.lower()}-{ident}"
-        return f"addr-{ident}"
+        line = normalize_address(self.get_formatted_line(), latinize=True)
+        key = make_cache_key(line, country=self.get_first("country"))
+        assert key is not None
+        return key
 
     def to_dict(self) -> dict[str, list[str]]:
         return clean_dict(self.model_dump())
@@ -220,7 +215,7 @@ class PostalAddressBase(AddressBase):
         if USE_LIBPOSTAL:
             parse_address = lazy_import.lazy_callable("postal.parser.parse_address")
             # postal screams if language or country is None
-            ctx = {k: ctx.get(k, "") for k in ("language", "country")}
+            ctx = {k: ctx.get(k, "") or "" for k in ("language", "country")}
             result = parse_address(value, **ctx)
         else:
             result = [(value, "full")]
@@ -324,16 +319,22 @@ class Address(FtmAddressBase):
 AddressInput: TypeAlias = str | Address | PostalAddress | CE | GeocodingResult
 
 
-def get_address(data: AddressInput, **ctx: PostalContext) -> Address:
+def get_address(
+    data: AddressInput, address_id: str | None = None, **ctx: PostalContext
+) -> Address:
     if isinstance(data, str):
-        return Address.from_string(data, **ctx)
-    if isinstance(data, PostalAddress):
-        return Address.from_postal(data, **ctx)
-    if isinstance(data, CompositeEntity):
-        return Address.from_proxy(data)
-    if isinstance(data, GeocodingResult):
-        return Address.from_result(data)
-    return data
+        addr = Address.from_string(data, **ctx)
+    elif isinstance(data, PostalAddress):
+        addr = Address.from_postal(data, **ctx)
+    elif isinstance(data, CompositeEntity):
+        addr = Address.from_proxy(data)
+    elif isinstance(data, GeocodingResult):
+        addr = Address.from_result(data)
+    else:
+        raise ValueError(f"Invalid input format: {data}")
+    if address_id is not None:
+        addr._id = address_id
+    return addr
 
 
 def get_components(data: AddressInput, **ctx: PostalContext) -> dict[str, str | None]:
@@ -357,11 +358,6 @@ def get_components(data: AddressInput, **ctx: PostalContext) -> dict[str, str | 
 def get_formatted_line(data: AddressInput, **ctx: PostalContext) -> str:
     address = get_address(data, **ctx)
     return address.get_formatted_line()
-
-
-def get_address_id(data: AddressInput, **ctx: PostalContext) -> str:
-    address = get_address(data, **ctx)
-    return address.get_id()
 
 
 def get_canonical_id(geocoder: GEOCODERS, place_id: str) -> str:

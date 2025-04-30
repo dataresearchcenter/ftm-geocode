@@ -14,9 +14,9 @@ from nomenklatura.entity import CE
 from normality import collapse_spaces
 
 from ftm_geocode.cache import get_cache, make_cache_key
-from ftm_geocode.io import Formats
+from ftm_geocode.io import FORMAT_FTM, Formats
 from ftm_geocode.logging import get_logger
-from ftm_geocode.model import Address, GeocodingResult, get_address_id, get_canonical_id
+from ftm_geocode.model import Address, GeocodingResult, get_canonical_id
 from ftm_geocode.settings import GEOCODERS, Settings
 from ftm_geocode.util import (
     apply_address,
@@ -98,7 +98,6 @@ def _geocode(
         min_delay_seconds=settings.min_delay_seconds,
         max_retries=settings.max_retries,
     )
-    address_id = get_address_id(value, **ctx)
 
     try:
         result = geocode(value, **geocoding_params)
@@ -119,13 +118,12 @@ def _geocode(
         address = Address.from_string(result.address, **ctx)
         geocoder_place_id = result.raw.get("place_id")
         if geocoder_place_id:
-            canonical_id = get_canonical_id(geocoder, geocoder_place_id)
+            address_id = get_canonical_id(geocoder, geocoder_place_id)
         else:
-            canonical_id = address.get_id()
+            address_id = address.get_id()
         result = GeocodingResult(
             cache_key=make_cache_key(value, **ctx),
             address_id=address_id,
-            canonical_id=canonical_id,
             original_line=value,
             result_line=result.address,
             country=address.get_country(),
@@ -171,12 +169,12 @@ def geocode_proxy(
     use_cache: bool | None = True,
     cache_only: bool | None = False,
     apply_nuts: bool | None = False,
-    output_format: Formats | None = Formats.ftm,
+    output_format: Formats | None = FORMAT_FTM,
     rewrite_ids: bool | None = True,
 ) -> Generator[CE | GeocodingResult, None, None]:
     proxy = ensure_proxy(proxy)
     if not proxy.schema.is_a("Thing"):
-        if output_format == Formats.ftm:
+        if output_format == FORMAT_FTM:
             yield proxy
         return
 
@@ -193,7 +191,7 @@ def geocode_proxy(
         )
         for value in get_proxy_addresses(proxy)
     )
-    if output_format == Formats.ftm:
+    if output_format == FORMAT_FTM:
         for result in results:
             if result is not None:
                 address = Address.from_result(result)
