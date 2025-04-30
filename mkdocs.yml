@@ -1,12 +1,17 @@
 site_name: ftm-geocode
 site_url: https://docs.investigraph.dev/lib/ftm-geocode
-repo_url: https://github.com/investigativedata/ftm-geocode
+repo_url: https://github.com/dataresearchcenter/ftm-geocode
 nav:
   - Intro: index.md
+  - install.md
+  - usage.md
+  - cache.md
+  - settings.md
 theme:
   name: material
-  logo: https://cdn.investigativedata.org/style/logo_basic_dark.svg
-  favicon: https://cdn.investigativedata.org/style/favicon.svg
+  logo: https://cdn.investigativedata.org/style/logos/darc/svg/DARC-Logo-RGB-Horizontal-Neg.svg
+  favicon: https://cdn.investigativedata.org/style/logos/darc/favicon.ico
+  custom_dir: docs/overrides
   features:
     - navigation.instant
     - navigation.tracking
@@ -19,11 +24,13 @@ extra_css:
 extra:
   social:
     - icon: material/mail
-      link: mailto:hi@investigativedata.org
+      link: mailto:hi@dataresearchcenter.org
     - icon: material/web
-      link: https://investigativedata.io
+      link: https://dataresearchcenter.org
     - icon: material/github
-      link: https://github.com/investigativedata/ftm-geocode
+      link: https://github.com/dataresearchcenter/ftm-geocode
+    - icon: material/linkedin
+      link: https://www.linkedin.com/company/dataresearchcenter/
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
