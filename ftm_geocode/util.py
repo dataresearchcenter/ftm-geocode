@@ -3,10 +3,21 @@ from unicodedata import normalize as _unormalize
 
 from banal import ensure_list
 from followthemoney.types import registry
+from followthemoney.util import make_entity_id
 from ftmq.util import get_country_code, get_country_name
 from nomenklatura.entity import CE
 from normality import collapse_spaces
 from normality import normalize as _normalize
+from rigour.addresses import normalize_address
+
+
+def make_address_id(line: str, country: str | None = None, **kwargs) -> str:
+    value = make_entity_id(normalize_address(line))
+    assert value, f"Invalid address line for id: {line}"
+    ccode = get_country_code(country)
+    if ccode is not None:
+        value = f"{ccode}-{value}"
+    return f"addr-{value}"
 
 
 def get_first(value: str | Iterable[Any] | None, default: Any | None = None) -> Any:
