@@ -1,27 +1,27 @@
 from unittest import TestCase
 
-from followthemoney import model
+from ftmq.util import make_proxy
 
 from ftm_geocode import geocode, nuts
 from ftm_geocode.model import get_coords
 
 
 class NutsTestCase(TestCase):
-    addressEntity = model.get_proxy(
+    addressEntity = make_proxy(
         {
             "id": "addr",
             "schema": "Address",
             "properties": {"full": ["Alexanderplatz, Berlin, Germany"]},
         }
     )
-    ukAddress = model.get_proxy(
+    ukAddress = make_proxy(
         {
             "id": "uk",
             "schema": "Address",
             "properties": {"full": ["Cowley Road, Cambridge, CB4 0WS, United Kingdom"]},
         }
     )
-    outside = model.get_proxy(
+    outside = make_proxy(
         {
             "id": "outside",
             "schema": "Address",

@@ -5,23 +5,20 @@ https://ec.europa.eu/eurostat/web/gisco/geodata/reference-data/administrative-un
 https://en.wikipedia.org/wiki/Nomenclature_of_Territorial_Units_for_Statistics
 """
 
-from functools import cache, lru_cache
-from typing import Any, TypeVar
+from functools import cache
+from typing import Any, Self
 
 import geopandas as gpd
-from followthemoney.proxy import E
+from ftmq.util import get_country_name
+from nomenklatura.entity import CE
 from pydantic import BaseModel
 from shapely.geometry import Point
 
-from .logging import get_logger
-from .settings import NUTS_DATA
-from .util import get_country_name
+from ftm_geocode.logging import get_logger
+from ftm_geocode.settings import Settings
 
 log = get_logger(__name__)
-
-
-N = TypeVar("N", bound="Nuts")
-N3 = TypeVar("N3", bound="Nuts3")
+settings = Settings()
 
 
 class Nuts(BaseModel):
@@ -33,7 +30,7 @@ class Nuts(BaseModel):
     path: str
 
     @classmethod
-    def from_code(cls, code: str) -> N:
+    def from_code(cls, code: str) -> Self:
         country = code[:2]
         return cls(
             level=len(code) - 2,
@@ -57,7 +54,7 @@ class Nuts3(BaseModel):
     path: str
 
     @classmethod
-    def from_code(cls, code: str) -> N3:
+    def from_code(cls, code: str) -> Self:
         nuts = split_nuts3(code)
         c, n1, n2, n3 = nuts
         return cls(
@@ -73,6 +70,10 @@ class Nuts3(BaseModel):
         )
 
 
+class ProxyNuts(Nuts3):
+    entity_id: str
+
+
 def split_nuts3(code: str) -> tuple[str, str, str, str]:
     # country, nuts1, nuts2, nuts3
     return code[:2], code[:3], code[:4], code[:5]
@@ -80,8 +81,8 @@ def split_nuts3(code: str) -> tuple[str, str, str, str]:
 
 @cache
 def get_nuts_data():
-    log.info("Loading nuts shapefile", fp=NUTS_DATA)
-    df = gpd.read_file(NUTS_DATA)
+    log.info("Loading nuts shapefile", fp=settings.nuts_data)
+    df = gpd.read_file(settings.nuts_data)
     df = df[["LEVL_CODE", "NUTS_ID", "NUTS_NAME", "geometry"]]
     return df
 
@@ -102,8 +103,7 @@ def get_nuts_path(code: str) -> str:
     return "/".join([code[: i + 2] for i in range(len(code) - 1)])
 
 
-@lru_cache(1_000_000)
-def _get_nuts(lon: float, lat: float) -> N3 | None:
+def _get_nuts(lon: float, lat: float) -> Nuts3 | None:
     df = get_nuts_data()
     df = df[df["LEVL_CODE"] == 3]
     point = Point(lon, lat)
@@ -117,7 +117,7 @@ def _get_nuts(lon: float, lat: float) -> N3 | None:
         return Nuts3.from_code(row["NUTS_ID"])
 
 
-def get_nuts(lon: Any | None = None, lat: Any | None = None) -> Nuts | None:
+def get_nuts(lon: Any | None = None, lat: Any | None = None) -> Nuts3 | None:
     try:
         lon, lat = round(float(lon), 6), round(float(lat), 6)
         return _get_nuts(lon, lat)
@@ -125,13 +125,17 @@ def get_nuts(lon: Any | None = None, lat: Any | None = None) -> Nuts | None:
         log.error("Invalid coordinates: (%s, %s)" % (lon, lat))
 
 
-def get_proxy_nuts(proxy: E) -> N3 | None:
+def get_proxy_nuts(proxy: CE) -> ProxyNuts | None:
     if not proxy.schema.is_a("Address"):
         return
     try:
-        lon, lat = float(proxy.first("longitude")), float(proxy.first("latitude"))
-        lon, lat = round(lon, 6), round(lat, 6)  # EU shapefile precision
-        return get_nuts(lon, lat)
+        lon, lat = proxy.first("longitude"), proxy.first("latitude")
+        if lon is not None and lat is not None:
+            lon, lat = float(lon), float(lat)
+            lon, lat = round(lon, 6), round(lat, 6)  # EU shapefile precision
+            nuts = get_nuts(lon, lat)
+            if nuts is not None:
+                return ProxyNuts(entity_id=proxy.id, **nuts.model_dump())
     except ValueError:
         log.error("Invalid coords", proxy=proxy.to_dict())
         return

@@ -1,265 +1,317 @@
-import csv
-from datetime import datetime
+from enum import StrEnum
+from typing import Optional
 
 import typer
+from anystore.cli import ErrorHandler
+from anystore.io import (
+    FORMAT_CSV,
+    FORMAT_JSON,
+    ModelWriter,
+    Writer,
+    smart_stream_models,
+)
+from ftmq.io import smart_read_proxies, smart_write_proxies
+from rich.console import Console
+from typing_extensions import Annotated
 
-from .cache import get_cache
-from .geocode import GEOCODERS, geocode_line, geocode_proxy
-from .io import Formats, get_coords_reader, get_reader, get_writer
-from .logging import configure_logging, get_logger
-from .model import POSTAL_KEYS, GeocodingResult, get_address, get_components
-from .nuts import Nuts3, get_proxy_nuts
-from .settings import LOG_LEVEL
+from ftm_geocode import __version__, logic
+from ftm_geocode.cache import get_cache
+from ftm_geocode.geocode import GEOCODERS, geocode_line, geocode_proxy
+from ftm_geocode.io import FORMAT_FTM, LatLonRow, PostalRow
+from ftm_geocode.logging import configure_logging, get_logger
+from ftm_geocode.model import POSTAL_KEYS, GeocodingResult, get_address
+from ftm_geocode.nuts import get_nuts, get_proxy_nuts
+from ftm_geocode.settings import Settings
 
-cli = typer.Typer()
+settings = Settings()
+cli = typer.Typer(no_args_is_help=True)
 cli_cache = typer.Typer()
 cli.add_typer(cli_cache, name="cache")
-
-configure_logging(LOG_LEVEL)
+console = Console(stderr=True)
 
 log = get_logger(__name__)
 
 
+class Formats(StrEnum):
+    ftm = FORMAT_FTM
+    json = FORMAT_JSON
+    csv = FORMAT_CSV
+
+
+class IOFormats(StrEnum):
+    json = FORMAT_JSON
+    csv = FORMAT_CSV
+
+
+class Opts:
+    IN = typer.Option("-", "-i", help="Input uri (file, http, s3...)")
+    OUT = typer.Option("-", "-o", help="Output uri (file, http, s3...)")
+    FORMATS = typer.Option(Formats.ftm)
+    IOFORMATS = typer.Option(Formats.json)
+    GEOCODERS = typer.Option(settings.geocoders, "--geocoders", "-g")
+    APPLY_NUTS = typer.Option(False, help="Add EU nuts codes")
+
+
+@cli.callback(invoke_without_command=True)
+def cli_store(
+    version: Annotated[Optional[bool], typer.Option(..., help="Show version")] = False,
+):
+    if version:
+        print(__version__)
+        raise typer.Exit()
+    configure_logging()
+
+
+@cli.command()
+def config():
+    """Show current configuration"""
+    with ErrorHandler():
+        console.print(settings)
+
+
 @cli.command()
 def format_line(
-    input_file: typer.FileText = typer.Option("-", "-i", help="input file"),
-    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="output file"),
-    header: bool = typer.Option(True, help="Input stream has csv header row"),
+    input_uri: str = Opts.IN,
+    input_format: IOFormats = Opts.IOFORMATS,
+    output_uri: str = Opts.OUT,
+    output_format: IOFormats = Opts.IOFORMATS,
 ):
     """
-    Get formatted line via libpostal parsing from csv input stream with 1 or
-    more columns:\n
-        - 1st column: address line\n
-        - 2nd column (optional): country or iso code - good to know for libpostal\n
-        - 3nd column (optional): language or iso code - good to know for libpostal\n
-        - all other columns will be passed through and appended to the result\n
-          (if using extra columns, country and language columns needs to be present)\n
-    """
-    reader = get_reader(input_file, Formats.csv, header=header)
-    writer = csv.writer(output_file)
+    Get formatted lines via libpostal parsing from csv or json input stream with
+    1 or more fields:
+        - "original_line": address line
+        - "country" (optional): country or iso code - good to know for libpostal
+        - "language" (optional): language or iso code - good to know for libpostal
+        - all other columns will be passed through to the result
 
-    for address, country, language, *rest in reader:
-        address = get_address(address, language=language, country=country)
-        writer.writerow(
-            [address.get_formatted_line(), ";".join(address.country), *rest]
-        )
+    Example:
+        ftmgeo format-line -i addresses.csv --input-format csv -o s3://my_bucket/addresses.json
+    """
+    with ErrorHandler():
+        if not settings.libpostal:
+            raise Exception("Please install and activate libpostal")
+        with ModelWriter(output_uri, output_format=output_format) as writer:
+            for row in smart_stream_models(input_uri, PostalRow, input_format):
+                row = logic.format_line(row)
+                writer.write(row)
 
 
 @cli.command()
 def parse_components(
-    input_file: typer.FileText = typer.Option("-", "-i", help="input file"),
-    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="output file"),
-    header: bool = typer.Option(True, help="Input stream has csv header row"),
+    input_uri: str = Opts.IN,
+    input_format: IOFormats = Opts.IOFORMATS,
+    output_uri: str = Opts.OUT,
+    output_format: IOFormats = Opts.IOFORMATS,
 ):
     """
-    Get components parsed from libpostal from csv input stream with 1 or
-    more columns:\n
-        - 1st column: address line\n
-        - 2nd column (optional): country or iso code - good to know for libpostal\n
-        - 3nd column (optional): language or iso code - good to know for libpostal\n
-        - all other columns will be passed through and appended to the result\n
-          (if using extra columns, country and language columns needs to be present)\n
-    """
-    reader = get_reader(input_file, Formats.csv, header=header)
-    writer = csv.DictWriter(
-        output_file,
-        fieldnames=["original_line", *POSTAL_KEYS, "language"],
-    )
-    writer.writeheader()
+    Get components parsed from libpostal from csv or json input stream with 1 or
+    more fields:
+        - "original_line": address line
+        - "country" (optional): country or iso code - good to know for libpostal
+        - "language" (optional): language or iso code - good to know for libpostal
+        - all other columns will be passed through to the result
 
-    for original_line, country, language, *rest in reader:
-        data = get_components(original_line, country=country, language=language)
-        data.update(original_line=original_line, language=language, country=country)
-        writer.writerow(data)
+    Example:
+        cat data.json | ftmgeo parse-components --output-format csv > data.csv
+    """
+    with ErrorHandler():
+        if not settings.libpostal:
+            raise Exception("Please install and activate libpostal")
+        rows = smart_stream_models(input_uri, PostalRow, input_format)
+        row = next(rows)
+        keys = row.model_dump().keys()
+        fieldnames = list(set(keys) | set(POSTAL_KEYS))
+        with Writer(
+            output_uri, output_format=output_format, fieldnames=fieldnames
+        ) as writer:
+            row = logic.parse_components(row)
+            writer.write(row)
+            for row in rows:
+                row = logic.parse_components(row)
+                writer.write(row)
+
+
+@cli.command()
+def map_entities(
+    input_uri: str = Opts.IN,
+    input_format: IOFormats = Opts.IOFORMATS,
+    output_uri: str = Opts.OUT,
+):
+    """
+    Map csv/json input stream to FollowTheMoney Address proxies, requires
+    libpostal
+
+    Required input field: `original_line`
+    """
+    with ErrorHandler():
+        if not settings.libpostal:
+            raise Exception("Please install and activate libpostal")
+        rows = smart_stream_models(input_uri, PostalRow, input_format)
+        addresses = (
+            get_address(
+                r.original_line,
+                address_id=r.address_id,
+                country=r.country,
+                language=r.language,
+            )
+            for r in rows
+        )
+        proxies = (a.to_proxy() for a in addresses)
+        smart_write_proxies(output_uri, proxies)
 
 
 @cli.command()
 def geocode(
-    input_file: typer.FileText = typer.Option("-", "-i", help="Input file"),
-    input_format: Formats = typer.Option(Formats.ftm.value, help="Input format"),
-    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="Output file"),
-    output_format: Formats = typer.Option(Formats.ftm.value, help="Output format"),
-    geocoder: list[GEOCODERS] = typer.Option(
-        [GEOCODERS.nominatim.value], "--geocoder", "-g"
-    ),
-    cache: bool = typer.Option(True, help="Use cache database"),
-    include_raw: bool = typer.Option(
-        False, help="Include geocoder raw response (for csv output only)"
-    ),
-    rewrite_ids: bool = typer.Option(
-        True, help="Rewrite `Address` entity ids to canonized id"
-    ),
-    header: bool = typer.Option(True, help="Input stream has csv header row"),
-    apply_nuts: bool = typer.Option(False, help="Add EU nuts codes"),
-    verbose_log: bool = typer.Option(False, help="Don't log cache hits"),
+    input_uri: str = Opts.IN,
+    input_format: Formats = Opts.FORMATS,
+    output_uri: str = Opts.OUT,
+    output_format: Formats = Opts.FORMATS,
+    geocoders: list[GEOCODERS] = Opts.GEOCODERS,
+    use_cache: Annotated[bool, typer.Option(help="Use cache database")] = True,
+    cache_only: Annotated[bool, typer.Option(help="Only use cache database")] = False,
+    rewrite_ids: Annotated[
+        bool, typer.Option(help="Rewrite `Address` entity ids to canonized id")
+    ] = True,
+    apply_nuts: Annotated[bool, typer.Option(help="Add EU nuts codes")] = False,
 ):
     """
-    Geocode ftm entities or csv input to given output format using different geocoders
+    Geocode ftm entities or csv input to given output format using different
+    geocoders. When using csv input, these columns must be used:
+
+    Columns:
+        - "original_line": address line
+        - "country" (optional): country or iso code - good to know for libpostal
+        - "language" (optional): language or iso code - good to know for libpostal
+        - all other columns will be passed through to the result
+
+    Example:
+        ftmgeo geocode -i s3://my_bucket/entities.ftm.json > entities.geocoded.ftm.json
     """
-    reader = get_reader(input_file, input_format, header=header)
-    writer = get_writer(output_file, output_format, include_raw=include_raw)
-
-    if input_format == Formats.ftm:
-        for proxy in reader:
-            for result in geocode_proxy(
-                geocoder,
-                proxy,
-                use_cache=cache,
-                output_format=output_format,
-                rewrite_ids=rewrite_ids,
-                apply_nuts=apply_nuts,
-                verbose_log=verbose_log,
-            ):
-                writer(result)
-
-    else:
-        for address, country, language, *rest in reader:
-            result = geocode_line(
-                geocoder,
-                address,
-                use_cache=cache,
-                country=country,
-                apply_nuts=apply_nuts,
-                verbose_log=verbose_log,
+    with ErrorHandler():
+        if input_format == Formats.ftm:
+            proxies = smart_read_proxies(input_uri)
+            results = (
+                geocode_proxy(
+                    geocoders,
+                    p,
+                    use_cache=use_cache,
+                    cache_only=cache_only,
+                    apply_nuts=apply_nuts,
+                    output_format=output_format,
+                    rewrite_ids=rewrite_ids,
+                )
+                for p in proxies
             )
-            if result is not None:
-                writer(result, *rest)
+        else:
+            tasks = smart_stream_models(input_uri, PostalRow, input_format)
+            results = (
+                geocode_line(
+                    geocoders,
+                    t.original_line,
+                    use_cache=use_cache,
+                    cache_only=cache_only,
+                    country=t.country,
+                    apply_nuts=apply_nuts,
+                )
+                for t in tasks
+            )
+        out_format = FORMAT_CSV if output_format == FORMAT_CSV else FORMAT_JSON
+        with Writer(output_uri, output_format=out_format) as writer:
+            for res in results:
+                if res is not None:
+                    if output_format == FORMAT_FTM:
+                        res = res.to_proxy()
+                        res = res.to_dict()
+                    else:
+                        res = res.model_dump(mode="json")
+                writer.write(res)
 
 
 @cli.command()
 def apply_nuts(
-    input_file: typer.FileText = typer.Option("-", "-i", help="Input file"),
-    input_format: Formats = typer.Option(Formats.ftm.value, help="Input format"),
-    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="Output file"),
-    header: bool = typer.Option(True, help="Input stream has csv header row"),
+    input_uri: str = Opts.IN,
+    input_format: Formats = Opts.FORMATS,
+    output_uri: str = Opts.OUT,
+    output_format: IOFormats = Opts.IOFORMATS,
 ):
     """
-    Apply EU NUTS codes to input stream (outputs always csv)
+    Apply EU NUTS codes to input stream
+
+    For ftm input, only Address entities with longitude and latitude properties
+    will be considered.
+
+    For csv or json input, use these fields:
+        - "lat": Latitude
+        - "lon": Longitude
+        - all other fields will be passed through to the result
     """
-    reader = get_coords_reader(input_file, input_format, header=header)
-
-    if input_format == Formats.ftm:
-        writer = csv.DictWriter(
-            output_file, fieldnames=["id", *Nuts3.__fields__.keys()]
-        )
-        writer.writeheader()
-        ix = 0
-        for ix, proxy in enumerate(reader):
-            nuts = get_proxy_nuts(proxy)
-            if nuts is not None:
-                writer.writerow({**{"id": proxy.id}, **nuts.dict()})
-            if ix and ix % 1_000 == 0:
-                log.info("Parse proxy %d ..." % ix)
-        if ix:
-            log.info("Parsed %d proxies" % (ix + 1))
-
-    if input_format == Formats.csv:
-        raise NotImplementedError("currently only ftm input stream implemented")
+    with ErrorHandler():
+        if input_format == FORMAT_FTM:
+            with ModelWriter(output_uri, output_format=output_format) as writer:
+                for proxy in smart_read_proxies(input_uri):
+                    nuts = get_proxy_nuts(proxy)
+                    if nuts is not None:
+                        writer.write(nuts)
+        else:
+            with Writer(output_uri, output_format=output_format) as writer:
+                for row in smart_stream_models(input_uri, LatLonRow, input_format):
+                    nuts = get_nuts(row.lon, row.lat)
+                    if nuts is not None:
+                        data = row.model_dump()
+                        data.update(nuts.model_dump())
+                        writer.write(data)
 
 
 @cli_cache.command("iterate")
 def cache_iterate(
-    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="Output file"),
-    output_format: Formats = typer.Option(Formats.ftm.value, help="Output format"),
-    include_raw: bool = typer.Option(False, help="Include geocoder raw response"),
-    apply_nuts: bool = typer.Option(False, help="Add EU nuts codes"),
-    ensure_ids: bool = typer.Option(
-        False,
-        help="Make sure address IDs are in most recent format (useful for migrating)",
-    ),
+    output_uri: str = Opts.OUT,
+    output_format: Formats = Opts.FORMATS,
+    apply_nuts: bool = Opts.APPLY_NUTS,
 ):
     """
     Export cached addresses to csv or ftm entities
     """
-    writer = get_writer(output_file, output_format, include_raw=include_raw)
-    cache = get_cache()
-
-    for res in cache.iterate():
-        if output_format == Formats.csv and apply_nuts:
-            res.apply_nuts()
-        if ensure_ids:
-            res.ensure_canonical_id()
-        writer(res)
+    with ErrorHandler():
+        cache = get_cache()
+        results = cache.iterate_values()
+        if apply_nuts:
+            results = (r.apply_nuts() for r in results)
+        if output_format in (FORMAT_CSV, FORMAT_JSON):
+            with ModelWriter(output_uri, output_format=output_format) as writer:
+                for res in results:
+                    writer.write(res)
+        else:
+            proxies = (r.to_proxy() for r in results)
+            smart_write_proxies(output_uri, proxies)
 
 
 @cli_cache.command("populate")
 def cache_populate(
-    input_file: typer.FileText = typer.Option("-", "-i", help="Input file"),
-    apply_nuts: bool = typer.Option(False, help="Add EU nuts codes"),
-    ensure_ids: bool = typer.Option(
-        False,
-        help="Make sure address IDs are in most recent format (useful for migrating)",
-    ),
+    input_uri: str = Opts.IN,
+    input_format: IOFormats = Opts.IOFORMATS,
+    apply_nuts: bool = Opts.APPLY_NUTS,
 ):
     """
-    Populate cache from csv input with these columns:
-        address_id: str
-        canonical_id: str
-        original_line: str
-        result_line: str
-        country: str
-        lat: float
-        lon: float
-        geocoder: str
-        geocoder_place_id: str | None = None
-        geocoder_raw: str | None = None
-        nuts0_id: str | None = None
-        nuts1_id: str | None = None
-        nuts2_id: str | None = None
-        nuts3_id: str | None = None
+    Populate cache from csv or json input with these fields:\n
+        address_id: str\n
+        canonical_id: str\n
+        original_line: str\n
+        result_line: str\n
+        country: str\n
+        lat: float\n
+        lon: float\n
+        geocoder: str\n
+        geocoder_place_id: str | None = None\n
+        geocoder_raw: str | None = None\n
+        nuts0_id: str | None = None\n
+        nuts1_id: str | None = None\n
+        nuts2_id: str | None = None\n
+        nuts3_id: str | None = None\n
+        ts: datetime | None = None\n
     """
-    reader = csv.DictReader(input_file)
-    cache = get_cache()
-    bulk = cache.bulk()
-
-    for row in reader:
-        if "ts" not in row:
-            row["ts"] = datetime.now()
-        result = GeocodingResult(**row)
-        if apply_nuts:
-            result.apply_nuts()
-        if ensure_ids:
-            result.ensure_canonical_id()
-        bulk.put(result)
-    bulk.flush()
-
-
-@cli_cache.command("apply-csv")
-def cache_apply_csv(
-    input_file: typer.FileText = typer.Option("-", "-i", help="Input file"),
-    output_file: typer.FileTextWrite = typer.Option("-", "-o", help="Output file"),
-    output_format: Formats = typer.Option(Formats.ftm.value, help="Output format"),
-    include_raw: bool = typer.Option(False, help="Include geocoder raw response"),
-    address_column: str = typer.Option("address", help="Column name for address line"),
-    country_column: str = typer.Option("country", help="Column name for country"),
-    language_column: str = typer.Option("language", help="Column name for language"),
-    get_missing: bool = typer.Option(False, help="Only output unmatched address data."),
-):
-    """
-    Apply geocoding results from cache only ("dry" geocoding) to a csv input stream
-
-    If input is csv, it needs a header row to pass through extra fields
-    """
-    reader = csv.DictReader(input_file)
-    writer = get_writer(
-        output_file,
-        output_format,
-        include_raw=include_raw,
-        extra_fields=reader.fieldnames,
-    )
-    cache = get_cache()
-
-    for row in reader:
-        address = row.get(address_column)
-        country = row.get(country_column, "")
-        language = row.get(language_column, "")
-        if address is not None:
-            result = cache.get(address, country=country, language=language)
-            if result is not None:
-                log.info(f"Cache hit: `{address}`", cache=str(cache), country=country)
-                if not get_missing:
-                    writer(result, extra_data=row)
-            else:
-                log.warning(f"No cache for `{address}`", country=country)
-                if get_missing:
-                    writer(extra_data=row)
+    with ErrorHandler():
+        cache = get_cache()
+        for row in smart_stream_models(input_uri, GeocodingResult, input_format):
+            if apply_nuts:
+                row.apply_nuts()
+            cache.put(row.address_id, row)

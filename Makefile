@@ -1,22 +1,24 @@
 all: clean install test
 
 install:
-	pip install -e .
-	pip install twine coverage nose moto pytest pytest-cov black flake8 isort bump2version mypy ipdb
+	poetry install --with dev
 
-test: install
-	rm -rf ./cache.db*
-	pytest tests -s --cov=ftm_geocode --cov-report term-missing
-	rm -rf ./cache.db*
+lint:
+	poetry run flake8 ftm_geocode --count --select=E9,F63,F7,F82 --show-source --statistics
+	poetry run flake8 ftm_geocode --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+pre-commit:
+	poetry run pre-commit install
+	poetry run pre-commit run -a
 
 typecheck:
-	mypy --strict ftm_geocode
+	poetry run mypy --strict ftm_geocode
+
+test:
+	poetry run pytest -v --capture=sys --cov=ftm_geocode --cov-report lcov
 
 build:
-	python setup.py sdist bdist_wheel
-
-release: clean build
-	twine upload dist/*
+	poetry run build
 
 clean:
 	rm -fr build/
@@ -31,3 +33,7 @@ clean:
 
 data/NUTS_RG_01M_2021_4326.shp.zip:
 	wget -4 -O data/NUTS_RG_01M_2021_4326.shp.zip https://gisco-services.ec.europa.eu/distribution/v2/nuts/shp/NUTS_RG_01M_2021_4326.shp.zip
+
+documentation:
+	mkdocs build
+	aws --profile nbg1 --endpoint-url https://s3.investigativedata.org s3 sync ./site s3://docs.investigraph.dev/lib/ftm-geocode

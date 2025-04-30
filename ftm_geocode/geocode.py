@@ -3,22 +3,22 @@ from datetime import datetime
 from typing import Any, Generator, TypedDict
 
 import geopy.geocoders
-import orjson
+from anystore import anycache
 from banal import clean_dict
-from followthemoney import model
-from followthemoney.proxy import E
+from ftmq.util import ensure_proxy
 from geopy.adapters import AdapterHTTPError
 from geopy.exc import GeocoderQueryError, GeocoderServiceError
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import get_geocoder_for_service
+from nomenklatura.entity import CE
+from normality import collapse_spaces
 
-from . import settings
-from .cache import get_cache
-from .io import Formats
-from .logging import get_logger
-from .model import Address, GeocodingResult, get_address_id, get_canonical_id
-from .settings import GEOCODERS
-from .util import (
+from ftm_geocode.cache import get_cache, make_cache_key
+from ftm_geocode.io import FORMAT_FTM, Formats
+from ftm_geocode.logging import get_logger
+from ftm_geocode.model import Address, GeocodingResult, get_canonical_id
+from ftm_geocode.settings import GEOCODERS, Settings
+from ftm_geocode.util import (
     apply_address,
     get_country_name,
     get_proxy_addresses,
@@ -26,14 +26,17 @@ from .util import (
     normalize_google,
 )
 
-geopy.geocoders.options.default_user_agent = settings.USER_AGENT
-geopy.geocoders.options.default_timeout = settings.DEFAULT_TIMEOUT
+settings = Settings()
+
+geopy.geocoders.options.default_user_agent = settings.user_agent
+geopy.geocoders.options.default_timeout = settings.default_timeout
 
 log = get_logger(__name__)
 
 
 class GeocodingContext(TypedDict):
-    country: str | None = None
+    country: str | None
+    language: str | None
 
 
 class Geocoder:
@@ -73,19 +76,28 @@ class Geocoder:
         return func(query, **ctx)
 
 
+@anycache(
+    store=get_cache(),
+    key_func=lambda _, v, **kwargs: make_cache_key(v, **kwargs),
+    model=GeocodingResult,
+)
 def _geocode(
-    geocoder: GEOCODERS, value: str, **ctx: GeocodingContext
+    geocoder: GEOCODERS,
+    value: str,
+    use_cache: bool | None = True,
+    cache_only: bool | None = False,
+    **ctx: GeocodingContext,
 ) -> GeocodingResult | None:
+    if cache_only:
+        return
     geolocator = Geocoder(geocoder)
     value = geolocator.get_query(value, **ctx)
     geocoding_params = geolocator.get_params(**ctx)
     geocode = RateLimiter(
         geolocator.geocoder.geocode,
-        min_delay_seconds=settings.MIN_DELAY_SECONDS,
-        max_retries=settings.MAX_RETRIES,
+        min_delay_seconds=settings.min_delay_seconds,
+        max_retries=settings.max_retries,
     )
-    address_id = get_address_id(value, **ctx)
-    cache = get_cache()
 
     try:
         result = geocode(value, **geocoding_params)
@@ -106,12 +118,12 @@ def _geocode(
         address = Address.from_string(result.address, **ctx)
         geocoder_place_id = result.raw.get("place_id")
         if geocoder_place_id:
-            canonical_id = get_canonical_id(geocoder, geocoder_place_id)
+            address_id = get_canonical_id(geocoder, geocoder_place_id)
         else:
-            canonical_id = address.get_id()
+            address_id = address.get_id()
         result = GeocodingResult(
+            cache_key=make_cache_key(value, **ctx),
             address_id=address_id,
-            canonical_id=canonical_id,
             original_line=value,
             result_line=result.address,
             country=address.get_country(),
@@ -119,57 +131,50 @@ def _geocode(
             lon=result.longitude,
             geocoder=geocoder.value,
             geocoder_place_id=geocoder_place_id,
-            geocoder_raw=orjson.dumps(result.raw),
+            geocoder_raw=result.raw,
             ts=datetime.now(),
         )
-        cache.put(result)
         return result
 
 
 def geocode_line(
-    geocoder: list[GEOCODERS],
+    geocoders: list[GEOCODERS],
     value: str,
     use_cache: bool | None = True,
+    cache_only: bool | None = False,
     apply_nuts: bool | None = False,
-    verbose_log: bool | None = False,
     **ctx: GeocodingContext,
 ) -> GeocodingResult | None:
+    cleaned_value = collapse_spaces(value)
+    if cleaned_value:
+        for geocoder in geocoders:
+            result = _geocode(
+                geocoder,
+                cleaned_value,
+                use_cache=use_cache,
+                cache_only=cache_only,
+                **ctx,
+            )
+            if result is not None:
+                if apply_nuts:
+                    result.apply_nuts()
+                return result
 
-    # look in cache
-    if use_cache:
-        cache = get_cache()
-        result = cache.get(value, **ctx)
-        if result is not None:
-            if verbose_log:
-                log.info(f"Cache hit: `{value}`", cache=str(cache), **ctx)
-            if apply_nuts:
-                result.apply_nuts()
-            return result
-
-    # geocode
-    geocoders = geocoder
-    for geocoder in geocoders:
-        result = _geocode(geocoder, value, **ctx)
-        if result is not None:
-            if apply_nuts:
-                result.apply_nuts()
-            return result
-
-    log.warning(f"Not found: `{value}`", geocoder=geocoder)
+    log.warning(f"No geocoding match found: `{value}`", geocoders=geocoders)
 
 
 def geocode_proxy(
     geocoder: list[GEOCODERS],
-    proxy: E | dict[str, Any],
+    proxy: CE | dict[str, Any],
     use_cache: bool | None = True,
+    cache_only: bool | None = False,
     apply_nuts: bool | None = False,
-    verbose_log: bool | None = False,
-    output_format: Formats | None = Formats.ftm,
+    output_format: Formats | None = FORMAT_FTM,
     rewrite_ids: bool | None = True,
-) -> Generator[E | GeocodingResult, None, None]:
-    proxy = model.get_proxy(proxy)
+) -> Generator[CE | GeocodingResult, None, None]:
+    proxy = ensure_proxy(proxy)
     if not proxy.schema.is_a("Thing"):
-        if output_format == Formats.ftm:
+        if output_format == FORMAT_FTM:
             yield proxy
         return
 
@@ -180,17 +185,19 @@ def geocode_proxy(
             geocoder,
             value,
             use_cache=use_cache,
+            cache_only=cache_only,
             apply_nuts=apply_nuts,
-            verbose_log=verbose_log,
             **ctx,
         )
         for value in get_proxy_addresses(proxy)
     )
-    if output_format == Formats.ftm:
+    if output_format == FORMAT_FTM:
         for result in results:
             if result is not None:
                 address = Address.from_result(result)
                 address = address.to_proxy()
+                address.add("country", ctx["country"])
+                address.add("region", result.nuts)
                 proxy = apply_address(proxy, address, rewrite_id=rewrite_ids)
                 if is_address:
                     yield proxy
