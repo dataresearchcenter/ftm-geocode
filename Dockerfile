@@ -1,4 +1,4 @@
-FROM ghcr.io/investigativedata/libpostal:main
+FROM ghcr.io/dataresearchcenter/libpostal:main
 
 RUN apt-get update && apt-get -y upgrade
 
