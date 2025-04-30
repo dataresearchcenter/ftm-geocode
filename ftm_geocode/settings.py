@@ -46,9 +46,6 @@ class Settings(BaseSettings):
     cache: StoreModel = StoreModel(uri=anystore.uri)
     """Cache uri (using anystore)"""
 
-    cache_prefix: str = "ftmgeo"
-    """Cache prefix"""
-
     nuts_data: Path = NUTS
     """Location for nuts shapefile data"""
 
