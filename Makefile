@@ -33,3 +33,7 @@ clean:
 
 data/NUTS_RG_01M_2021_4326.shp.zip:
 	wget -4 -O data/NUTS_RG_01M_2021_4326.shp.zip https://gisco-services.ec.europa.eu/distribution/v2/nuts/shp/NUTS_RG_01M_2021_4326.shp.zip
+
+documentation:
+	mkdocs build
+	aws --profile nbg1 --endpoint-url https://s3.investigativedata.org s3 sync ./site s3://docs.investigraph.dev/lib/ftm-geocode
