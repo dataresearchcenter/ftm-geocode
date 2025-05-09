@@ -36,4 +36,4 @@ data/NUTS_RG_01M_2021_4326.shp.zip:
 
 documentation:
 	mkdocs build
-	aws --profile nbg1 --endpoint-url https://s3.investigativedata.org s3 sync ./site s3://docs.investigraph.dev/lib/ftm-geocode
+	aws --endpoint-url https://s3.investigativedata.org s3 sync ./site s3://docs.investigraph.dev/lib/ftm-geocode
