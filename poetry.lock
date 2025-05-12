@@ -207,18 +207,19 @@ files = [
 
 [[package]]
 name = "anystore"
-version = "0.3.3"
+version = "0.3.4"
 description = "Store and cache things anywhere"
 optional = false
 python-versions = "<4,>=3.11"
 groups = ["main"]
 files = [
-    {file = "anystore-0.3.3-py3-none-any.whl", hash = "sha256:c516e2f3eb4e8babca3b5c07a4cc2dce918a6f4d087d84c30f4035c5363c041b"},
-    {file = "anystore-0.3.3.tar.gz", hash = "sha256:589ca01c46d044de438e7c96934d99ed08a87b39f85d5894a6e3cec867ddf367"},
+    {file = "anystore-0.3.4-py3-none-any.whl", hash = "sha256:d2ad16eab0b6a9a5bf2a2d50e519950e4abc2b01c8db8792f359adad6d809818"},
+    {file = "anystore-0.3.4.tar.gz", hash = "sha256:284a8200a030667c4ce08bf4597952a1d828ae6a05575fa9c3f1c66f4229386d"},
 ]
 
 [package.dependencies]
 banal = ">=1.0.6,<2.0.0"
+click = "<8.2"
 cloudpickle = ">=3.1.0,<4.0.0"
 fsspec = ">2023.10,<2026"
 orjson = ">=3.9.15"
@@ -231,7 +232,7 @@ structlog = ">=24.4.0,<25.0.0"
 typer = ">=0.15.1,<0.16.0"
 
 [package.extras]
-redis = ["fakeredis (>=2.26.2,<3.0.0)", "redis (>=5.2.1,<6.0.0)"]
+redis = ["fakeredis (>=2.26.2,<3.0.0)", "redis (>=4.0.0)"]
 sql = ["sqlalchemy (>=2.0.36,<3.0.0)"]
 
 [[package]]
@@ -1104,19 +1105,19 @@ tqdm = ["tqdm"]
 
 [[package]]
 name = "ftmq"
-version = "0.8.3"
+version = "0.8.4"
 description = "followthemoney query dsl and io helpers"
 optional = false
 python-versions = "<4,>=3.11"
 groups = ["main"]
 files = [
-    {file = "ftmq-0.8.3-py3-none-any.whl", hash = "sha256:389cf11f486a0255f6a600f59d7b84bd43d8e97e62a88390c428379afd94a180"},
-    {file = "ftmq-0.8.3.tar.gz", hash = "sha256:f14fe1c00491ab35824dccb32ccb00b045f883b2098694c9070a82a30b6b802e"},
+    {file = "ftmq-0.8.4-py3-none-any.whl", hash = "sha256:11909a3fe3eec2d49f87dac61f73c0e158fcf826c3003dd4f2ca74c60733ce74"},
+    {file = "ftmq-0.8.4.tar.gz", hash = "sha256:9453534551be53588a9fea9b17d104223432a13998589c7af718579fee36d48f"},
 ]
 
 [package.dependencies]
 alephclient = ">=2.6.0,<3.0.0"
-anystore = ">=0.3.3,<0.4.0"
+anystore = ">=0.3.4,<0.4.0"
 click = ">=8.1.8,<9.0.0"
 click-default-group = ">=1.2.4,<2.0.0"
 nomenklatura = ">=3.17.3,<4.0.0"
@@ -4824,4 +4825,4 @@ postal = ["postal"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4"
-content-hash = "b21bc925e2a87e9da20505983626d9ef6483f9371ce52f0bb1635809a50d895b"
+content-hash = "92fa6d63ba99652e0dcd780ae57446f56d45155f33f690de675a9bd6a4f3c76f"
