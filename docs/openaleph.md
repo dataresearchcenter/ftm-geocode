@@ -14,12 +14,14 @@ procrastinate worker -q ftm-geocode
 ## Defer tasks from other services
 
 ```python
+from followthemoney.entity import EntityProxy
+
 from openaleph_procrastinate.app import make_app
 from openaleph_procrastinate.model import DatasetJob
 
-app = make_app()
+app = make_app(__loader__.name)
 
-def defer_job(entity):
+def defer_geocode_job(entity: EntityProxy):
     with app.open():
         job = DatasetJob.from_entity(
             dataset="my_dataset",
@@ -27,7 +29,7 @@ def defer_job(entity):
             task="ftm_geocode.tasks.geocode",
             entity=entity
         )
-        job.defer()
+        job.defer(app=app)
 ```
 
 [Read more about this example](https://openaleph.org/docs/lib/openaleph-procrastinate/howto/)

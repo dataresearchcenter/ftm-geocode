@@ -12,7 +12,8 @@ ORIGIN = "ftm-geocode"
 
 
 @task(app=app)
-def geocode(job: DatasetJob):
-    with job.get_writer() as bulk:
-        for proxy in geocode_proxy(settings.geocoders, job.payload, rewrite_ids=False):
-            bulk.put(proxy, origin=ORIGIN)
+def geocode(job: DatasetJob) -> DatasetJob:
+    job.payload["entities"] = []
+    for proxy in geocode_proxy(settings.geocoders, job.entity, rewrite_ids=False):
+        job.payload["entities"].append(proxy)
+    return job
