@@ -239,9 +239,10 @@ sql = ["sqlalchemy (>=2.0.36,<3.0.0)"]
 name = "asgiref"
 version = "3.8.1"
 description = "ASGI specs, helper code, and adapters"
-optional = false
+optional = true
 python-versions = ">=3.8"
 groups = ["main"]
+markers = "extra == \"openaleph\""
 files = [
     {file = "asgiref-3.8.1-py3-none-any.whl", hash = "sha256:3e1e3ecc849832fe52ccf2cb6686b7a55f82bb1d6aee72a58826471390335e47"},
     {file = "asgiref-3.8.1.tar.gz", hash = "sha256:c343bd80a0bec947a9860adb4c432ffa7db769836c64238fc34bdc3fec84d590"},
@@ -708,9 +709,10 @@ toml = ["tomli ; python_full_version <= \"3.11.0a6\""]
 name = "croniter"
 version = "6.0.0"
 description = "croniter provides iteration for datetime object with cron like format"
-optional = false
+optional = true
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.6"
 groups = ["main"]
+markers = "extra == \"openaleph\""
 files = [
     {file = "croniter-6.0.0-py2.py3-none-any.whl", hash = "sha256:2f878c3856f17896979b2a4379ba1f09c83e374931ea15cc835c5dd2eee9b368"},
     {file = "croniter-6.0.0.tar.gz", hash = "sha256:37c504b313956114a983ece2c2b07790b1f1094fe9d81cc94739214748255577"},
@@ -748,9 +750,10 @@ files = [
 name = "dj-database-url"
 version = "2.3.0"
 description = "Use Database URLs in your Django Application."
-optional = false
+optional = true
 python-versions = "*"
 groups = ["main"]
+markers = "extra == \"openaleph\""
 files = [
     {file = "dj_database_url-2.3.0-py3-none-any.whl", hash = "sha256:bb0d414ba0ac5cd62773ec7f86f8cc378a9dbb00a80884c2fc08cc570452521e"},
     {file = "dj_database_url-2.3.0.tar.gz", hash = "sha256:ae52e8e634186b57e5a45e445da5dc407a819c2ceed8a53d1fac004cc5288787"},
@@ -764,9 +767,10 @@ typing_extensions = ">=3.10.0.0"
 name = "django"
 version = "5.2.1"
 description = "A high-level Python web framework that encourages rapid development and clean, pragmatic design."
-optional = false
+optional = true
 python-versions = ">=3.10"
 groups = ["main"]
+markers = "extra == \"openaleph\""
 files = [
     {file = "django-5.2.1-py3-none-any.whl", hash = "sha256:a9b680e84f9a0e71da83e399f1e922e1ab37b2173ced046b541c72e1589a5961"},
     {file = "django-5.2.1.tar.gz", hash = "sha256:57fe1f1b59462caed092c80b3dd324fd92161b620d59a9ba9181c34746c97284"},
@@ -900,9 +904,10 @@ dev = ["build", "bump2version", "coverage (>=4.1)", "flake8 (>=2.6.0)", "mypy", 
 name = "followthemoney-store"
 version = "3.1.0"
 description = "Store raw and structured FollowTheMoney data from different datasets in a data lake"
-optional = false
+optional = true
 python-versions = "*"
 groups = ["main"]
+markers = "extra == \"openaleph\""
 files = [
     {file = "followthemoney-store-3.1.0.tar.gz", hash = "sha256:4c8e05ddbec4eb729670e813f2e0d768c79229fa2bea6458de87897d51cf5908"},
     {file = "followthemoney_store-3.1.0-py2.py3-none-any.whl", hash = "sha256:93a021f5c822dfcc21e85bf2291494d96f50c53dfceeb9a86418c6a99feaab82"},
@@ -2392,9 +2397,10 @@ files = [
 name = "openaleph-procrastinate"
 version = "0.0.1"
 description = "Task queue logic for OpenAleph built upon procrastinate"
-optional = false
+optional = true
 python-versions = "<4,>=3.11"
 groups = ["main"]
+markers = "extra == \"openaleph\""
 files = [
     {file = "openaleph_procrastinate-0.0.1-py3-none-any.whl", hash = "sha256:d03f76b572537032787c07a3abd44859d9b7f851e6c1a35cda8add5957932c4b"},
     {file = "openaleph_procrastinate-0.0.1.tar.gz", hash = "sha256:e83c0a69089c8bedda7a741197bd7e0a67b5961603fdd425bbce019093674b6c"},
@@ -2767,9 +2773,10 @@ dev = ["bump2version", "mypy", "pytest", "pytest-cov", "twine", "wheel (>=0.29.0
 name = "procrastinate"
 version = "3.1.0"
 description = "Postgres-based distributed task processing library"
-optional = false
+optional = true
 python-versions = ">=3.9"
 groups = ["main"]
+markers = "extra == \"openaleph\""
 files = [
     {file = "procrastinate-3.1.0-py3-none-any.whl", hash = "sha256:f5e6c2395a1fc58d069b858d5b03079a7e3520c76a27959c68d798cf52b66818"},
     {file = "procrastinate-3.1.0.tar.gz", hash = "sha256:f4168de7694f4b639a668577084352f822a206d32f18850f582138f49d4af8ab"},
@@ -2918,9 +2925,10 @@ files = [
 name = "psycopg"
 version = "3.2.8"
 description = "PostgreSQL database adapter for Python"
-optional = false
+optional = true
 python-versions = ">=3.8"
 groups = ["main"]
+markers = "extra == \"openaleph\""
 files = [
     {file = "psycopg-3.2.8-py3-none-any.whl", hash = "sha256:0e960f1977d77de7f1ace4b54590f686b52c2f9ab1f61fff4141887fc711d9e7"},
     {file = "psycopg-3.2.8.tar.gz", hash = "sha256:cc995d836841e400c4f615d8dea351dc39697ad29df84d428f9c38c8040222f8"},
@@ -2943,9 +2951,10 @@ test = ["anyio (>=4.0)", "mypy (>=1.14)", "pproxy (>=2.7)", "pytest (>=6.2.5)", 
 name = "psycopg-pool"
 version = "3.2.6"
 description = "Connection Pool for Psycopg"
-optional = false
+optional = true
 python-versions = ">=3.8"
 groups = ["main"]
+markers = "extra == \"openaleph\""
 files = [
     {file = "psycopg_pool-3.2.6-py3-none-any.whl", hash = "sha256:5887318a9f6af906d041a0b1dc1c60f8f0dda8340c2572b74e10907b51ed5da7"},
     {file = "psycopg_pool-3.2.6.tar.gz", hash = "sha256:0f92a7817719517212fbfe2fd58b8c35c1850cdd2a80d36b581ba2085d9148e5"},
@@ -2958,9 +2967,10 @@ typing-extensions = ">=4.6"
 name = "psycopg2-binary"
 version = "2.9.10"
 description = "psycopg2 - Python-PostgreSQL Database Adapter"
-optional = false
+optional = true
 python-versions = ">=3.8"
 groups = ["main"]
+markers = "extra == \"openaleph\""
 files = [
     {file = "psycopg2-binary-2.9.10.tar.gz", hash = "sha256:4b3df0e6990aa98acda57d983942eff13d824135fe2250e6522edaa782a06de2"},
     {file = "psycopg2_binary-2.9.10-cp310-cp310-macosx_12_0_x86_64.whl", hash = "sha256:0ea8e3d0ae83564f2fc554955d327fa081d065c8ca5cc6d2abb643e2c9c1200f"},
@@ -4187,9 +4197,10 @@ typing-extensions = ">=3.7.4"
 name = "sqlparse"
 version = "0.5.3"
 description = "A non-validating SQL parser."
-optional = false
+optional = true
 python-versions = ">=3.8"
 groups = ["main"]
+markers = "extra == \"openaleph\""
 files = [
     {file = "sqlparse-0.5.3-py3-none-any.whl", hash = "sha256:cf2196ed3418f3ba5de6af7e82c694a9fbdbfecccdfc72e281548517081f16ca"},
     {file = "sqlparse-0.5.3.tar.gz", hash = "sha256:09f67787f56a0b16ecdbde1bfc7f5d9c3371ca683cfeaa8e6ff60b4807ec9272"},
@@ -4685,9 +4696,10 @@ multidict = ">=4.0"
 propcache = ">=0.2.1"
 
 [extras]
+openaleph = ["openaleph-procrastinate"]
 postal = ["postal"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4"
-content-hash = "87ce7f04cd83089025714f322a1a15f116b3959783afd40795212c6f0f4a06dd"
+content-hash = "103c1080af66b3e61dfea49999e1f069e8b29f634208323994165af694f4e641"
