@@ -267,19 +267,6 @@ astroid = ["astroid (>=2,<4)"]
 test = ["astroid (>=2,<4)", "pytest", "pytest-cov", "pytest-xdist"]
 
 [[package]]
-name = "async-timeout"
-version = "5.0.1"
-description = "Timeout context manager for asyncio programs"
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-markers = "python_version == \"3.11\" and python_full_version <= \"3.11.2\""
-files = [
-    {file = "async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c"},
-    {file = "async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3"},
-]
-
-[[package]]
 name = "attrs"
 version = "25.3.0"
 description = "Classes Without Boilerplate"
@@ -619,6 +606,7 @@ files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
+markers = {main = "platform_system == \"Windows\""}
 
 [[package]]
 name = "countrynames"
@@ -819,29 +807,6 @@ files = [
 
 [package.extras]
 tests = ["asttokens (>=2.1.0)", "coverage", "coverage-enable-subprocess", "ipython", "littleutils", "pytest", "rich ; python_version >= \"3.11\""]
-
-[[package]]
-name = "fakeredis"
-version = "2.29.0"
-description = "Python implementation of redis API, can be used for testing purposes."
-optional = false
-python-versions = "<4.0,>=3.7"
-groups = ["main"]
-files = [
-    {file = "fakeredis-2.29.0-py3-none-any.whl", hash = "sha256:f644c0a69dc088455d75a9b259d101e28a1c5659381aa6d9ee6c2b31eb5a909f"},
-    {file = "fakeredis-2.29.0.tar.gz", hash = "sha256:159cebf2c53e2c2bd7d18220fa93aa5f1d7152f6b6dd7896c46234d674342398"},
-]
-
-[package.dependencies]
-redis = {version = ">=4.3", markers = "python_full_version > \"3.8.0\""}
-sortedcontainers = ">=2,<3"
-
-[package.extras]
-bf = ["pyprobables (>=0.6,<0.7)"]
-cf = ["pyprobables (>=0.6,<0.7)"]
-json = ["jsonpath-ng (>=1.6,<2.0)"]
-lua = ["lupa (>=2.1,<3.0)"]
-probabilistic = ["pyprobables (>=0.6,<0.7)"]
 
 [[package]]
 name = "filelock"
@@ -2425,34 +2390,29 @@ files = [
 
 [[package]]
 name = "openaleph-procrastinate"
-version = "0.0.0"
+version = "0.0.1"
 description = "Task queue logic for OpenAleph built upon procrastinate"
 optional = false
-python-versions = ">=3.11,<4"
+python-versions = "<4,>=3.11"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "openaleph_procrastinate-0.0.1-py3-none-any.whl", hash = "sha256:d03f76b572537032787c07a3abd44859d9b7f851e6c1a35cda8add5957932c4b"},
+    {file = "openaleph_procrastinate-0.0.1.tar.gz", hash = "sha256:e83c0a69089c8bedda7a741197bd7e0a67b5961603fdd425bbce019093674b6c"},
+]
 
 [package.dependencies]
 dj-database-url = ">=2.3.0,<3.0.0"
 django = ">=5.2,<6.0"
 followthemoney = ">=3.8.2,<4.0.0"
 followthemoney-store = {version = ">=3.1.0,<4.0.0", extras = ["postgresql"]}
-ftmq = ">=0.8.3,<0.9.0"
+ftmq = ">=0.8.4,<0.9.0"
 orjson = ">=3.10.18,<4.0.0"
 procrastinate = {version = ">=3.1.0,<4.0.0", extras = ["django"]}
 pydantic = ">=2.11.4,<3.0.0"
 pydantic-settings = ">=2.9.1,<3.0.0"
-servicelayer = {git = "https://github.com/dataresearchcenter/servicelayer", rev = "main"}
 
 [package.extras]
 django = ["django (>=5.2,<6.0)"]
-
-[package.source]
-type = "git"
-url = "https://github.com/openaleph/openaleph-procrastinate"
-reference = "main"
-resolved_reference = "4acd6658400999b8fc8d9b770470ed36afdf4434"
 
 [[package]]
 name = "openpyxl"
@@ -2722,23 +2682,6 @@ files = [
 ]
 
 [[package]]
-name = "pika"
-version = "1.3.2"
-description = "Pika Python AMQP Client Library"
-optional = false
-python-versions = ">=3.7"
-groups = ["main"]
-files = [
-    {file = "pika-1.3.2-py3-none-any.whl", hash = "sha256:0779a7c1fafd805672796085560d290213a465e4f6f76a6fb19e378d8041a14f"},
-    {file = "pika-1.3.2.tar.gz", hash = "sha256:b2a327ddddf8570b4965b3576ac77091b850262d34ce8c1d8cb4e4146aa4145f"},
-]
-
-[package.extras]
-gevent = ["gevent"]
-tornado = ["tornado"]
-twisted = ["twisted"]
-
-[[package]]
 name = "platformdirs"
 version = "4.3.7"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a `user data dir`."
@@ -2847,21 +2790,6 @@ django = ["django (>=2.2)"]
 psycopg2 = ["psycopg2-binary"]
 sphinx = ["sphinx"]
 sqlalchemy = ["sqlalchemy (>=2.0,<3.0)"]
-
-[[package]]
-name = "prometheus-client"
-version = "0.20.0"
-description = "Python client for the Prometheus monitoring system."
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-files = [
-    {file = "prometheus_client-0.20.0-py3-none-any.whl", hash = "sha256:cde524a85bce83ca359cc837f28b8c0db5cac7aa653a588fd7e84ba061c329e7"},
-    {file = "prometheus_client-0.20.0.tar.gz", hash = "sha256:287629d00b147a32dcb2be0b9df905da599b2d82f80377083ec8463309a4bb89"},
-]
-
-[package.extras]
-twisted = ["twisted"]
 
 [[package]]
 name = "prompt-toolkit"
@@ -2988,14 +2916,14 @@ files = [
 
 [[package]]
 name = "psycopg"
-version = "3.2.7"
+version = "3.2.8"
 description = "PostgreSQL database adapter for Python"
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "psycopg-3.2.7-py3-none-any.whl", hash = "sha256:d39747d2d5b9658b69fa462ad21d31f1ba4a5722ad1d0cb952552bc0b4125451"},
-    {file = "psycopg-3.2.7.tar.gz", hash = "sha256:9afa609c7ebf139827a38c0bf61be9c024a3ed743f56443de9d38e1efc260bf3"},
+    {file = "psycopg-3.2.8-py3-none-any.whl", hash = "sha256:0e960f1977d77de7f1ace4b54590f686b52c2f9ab1f61fff4141887fc711d9e7"},
+    {file = "psycopg-3.2.8.tar.gz", hash = "sha256:cc995d836841e400c4f615d8dea351dc39697ad29df84d428f9c38c8040222f8"},
 ]
 
 [package.dependencies]
@@ -3004,8 +2932,8 @@ typing-extensions = {version = ">=4.6", markers = "python_version < \"3.13\""}
 tzdata = {version = "*", markers = "sys_platform == \"win32\""}
 
 [package.extras]
-binary = ["psycopg-binary (==3.2.7) ; implementation_name != \"pypy\""]
-c = ["psycopg-c (==3.2.7) ; implementation_name != \"pypy\""]
+binary = ["psycopg-binary (==3.2.8) ; implementation_name != \"pypy\""]
+c = ["psycopg-c (==3.2.8) ; implementation_name != \"pypy\""]
 dev = ["ast-comments (>=1.1.2)", "black (>=24.1.0)", "codespell (>=2.2)", "dnspython (>=2.1)", "flake8 (>=4.0)", "isort-psycopg", "isort[colors] (>=6.0)", "mypy (>=1.14)", "pre-commit (>=4.0.1)", "types-setuptools (>=57.4)", "types-shapely (>=2.0)", "wheel (>=0.37)"]
 docs = ["Sphinx (>=5.0)", "furo (==2022.6.21)", "sphinx-autobuild (>=2021.3.14)", "sphinx-autodoc-typehints (>=1.12)"]
 pool = ["psycopg-pool"]
@@ -3827,25 +3755,6 @@ networkx = ["networkx (>=2,<4)"]
 orjson = ["orjson (>=3.9.14,<4)"]
 
 [[package]]
-name = "redis"
-version = "4.6.0"
-description = "Python client for Redis database and key-value store"
-optional = false
-python-versions = ">=3.7"
-groups = ["main"]
-files = [
-    {file = "redis-4.6.0-py3-none-any.whl", hash = "sha256:e2b03db868160ee4591de3cb90d40ebb50a90dd302138775937f6a42b7ed183c"},
-    {file = "redis-4.6.0.tar.gz", hash = "sha256:585dc516b9eb042a619ef0a39c3d7d55fe81bdb4df09a52c9cdde0d07bf1aa7d"},
-]
-
-[package.dependencies]
-async-timeout = {version = ">=4.0.2", markers = "python_full_version <= \"3.11.2\""}
-
-[package.extras]
-hiredis = ["hiredis (>=1.0.0)"]
-ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==20.0.1)", "requests (>=2.26.0)"]
-
-[[package]]
 name = "requests"
 version = "2.32.3"
 description = "Python HTTP for Humans."
@@ -4070,38 +3979,6 @@ doc = ["intersphinx_registry", "jupyterlite-pyodide-kernel", "jupyterlite-sphinx
 test = ["Cython", "array-api-strict (>=2.0,<2.1.1)", "asv", "gmpy2", "hypothesis (>=6.30)", "meson", "mpmath", "ninja ; sys_platform != \"emscripten\"", "pooch", "pytest", "pytest-cov", "pytest-timeout", "pytest-xdist", "scikit-umfpack", "threadpoolctl"]
 
 [[package]]
-name = "servicelayer"
-version = "1.23.1"
-description = "Basic remote service functions for alephdata components"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = []
-develop = false
-
-[package.dependencies]
-banal = ">=1.0.6,<2.0.0"
-colorama = ">=0.4.4,<1.0.0"
-fakeredis = ">=2.11.2,<3.0.0"
-normality = ">=2.4.0,<3.0.0"
-pika = ">=1.3.1,<2.0.0"
-prometheus-client = ">=0.17.1,<0.21.0"
-redis = "<=4.6.0"
-sqlalchemy = ">=1.4.49,<3.0.0"
-structlog = ">=20.2.0,<25.0.0"
-
-[package.extras]
-amazon = ["boto3 (>=1.11.9,<2.0.0)"]
-dev = ["boto3 (>=1.11.9,<2.0.0)", "coverage", "moto (<5)", "pytest (>=3.6)", "pytest-cov", "time-machine (>=2.14.1,<3.0.0)", "twine"]
-google = ["google-cloud-storage (>=1.31.0,<3.0.0)", "grpcio (>=1.32.0,<2.0.0)"]
-
-[package.source]
-type = "git"
-url = "https://github.com/dataresearchcenter/servicelayer"
-reference = "HEAD"
-resolved_reference = "10f0a4d74d692fc2c5b76607b84b43554a1c8432"
-
-[[package]]
 name = "shapely"
 version = "2.1.0"
 description = "Manipulation and analysis of geometric objects"
@@ -4193,18 +4070,6 @@ groups = ["main", "dev"]
 files = [
     {file = "six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"},
     {file = "six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81"},
-]
-
-[[package]]
-name = "sortedcontainers"
-version = "2.4.0"
-description = "Sorted Containers -- Sorted List, Sorted Dict, Sorted Set"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0"},
-    {file = "sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88"},
 ]
 
 [[package]]
@@ -4825,4 +4690,4 @@ postal = ["postal"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4"
-content-hash = "92fa6d63ba99652e0dcd780ae57446f56d45155f33f690de675a9bd6a4f3c76f"
+content-hash = "87ce7f04cd83089025714f322a1a15f116b3959783afd40795212c6f0f4a06dd"
