@@ -251,13 +251,15 @@ class Address(FtmAddressBase):
         return super().get_id()
 
     def to_proxy(self) -> CE:
-        return make_proxy(
+        proxy = make_proxy(
             {
                 "id": self.get_id(),
                 "schema": "Address",
                 "properties": clean_dict(self.model_dump()),
             }
         )
+        proxy.set("full", self.get_formatted_line())
+        return proxy
 
     def get_formatted_line(self) -> str:
         country = get_country_code(self.get_first("country"))
