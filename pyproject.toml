@@ -1,6 +1,6 @@
 [project]
 name = "ftm-geocode"
-version = "0.1.0"
+version = "0.1.1"
 description = "Parsing and geocoding addresses for followthemoney entities powered by libpostal"
 authors = [{ name = "Simon Wörpel", email = "simon.woerpel@pm.me" }]
 license = "AGPLv3+"
