@@ -12,3 +12,8 @@ COPY VERSION /app/ftm-geocode/
 WORKDIR /app/ftm-geocode
 RUN pip install -U pip setuptools
 RUN pip install ".[postal]"
+
+ENV PROCRASTINATE_APP "ftm_geocode.tasks.app"
+
+USER 1000
+ENTRYPOINT [ "ftm-geocode" ]

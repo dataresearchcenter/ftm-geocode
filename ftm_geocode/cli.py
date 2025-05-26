@@ -150,7 +150,6 @@ def map_entities(
         addresses = (
             get_address(
                 r.original_line,
-                address_id=r.address_id,
                 country=r.country,
                 language=r.language,
             )
@@ -202,6 +201,7 @@ def geocode(
                 )
                 for p in proxies
             )
+            results = (p for res in results for p in res)
         else:
             tasks = smart_stream_models(input_uri, PostalRow, input_format)
             results = (
@@ -220,7 +220,8 @@ def geocode(
             for res in results:
                 if res is not None:
                     if output_format == FORMAT_FTM:
-                        res = res.to_proxy()
+                        if input_format != FORMAT_FTM:
+                            res = res.to_proxy()
                         res = res.to_dict()
                     else:
                         res = res.model_dump(mode="json")

@@ -5,12 +5,12 @@ from typing import Any, Generator, TypedDict
 import geopy.geocoders
 from anystore import anycache
 from banal import clean_dict
+from followthemoney.proxy import EntityProxy
 from ftmq.util import ensure_proxy
 from geopy.adapters import AdapterHTTPError
 from geopy.exc import GeocoderQueryError, GeocoderServiceError
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import get_geocoder_for_service
-from nomenklatura.entity import CE
 from normality import collapse_spaces
 
 from ftm_geocode.cache import get_cache, make_cache_key
@@ -165,13 +165,13 @@ def geocode_line(
 
 def geocode_proxy(
     geocoder: list[GEOCODERS],
-    proxy: CE | dict[str, Any],
+    proxy: EntityProxy | dict[str, Any],
     use_cache: bool | None = True,
     cache_only: bool | None = False,
     apply_nuts: bool | None = False,
     output_format: Formats | None = FORMAT_FTM,
     rewrite_ids: bool | None = True,
-) -> Generator[CE | GeocodingResult, None, None]:
+) -> Generator[EntityProxy | GeocodingResult, None, None]:
     proxy = ensure_proxy(proxy)
     if not proxy.schema.is_a("Thing"):
         if output_format == FORMAT_FTM:

@@ -1,0 +1,13 @@
+dataset:
+  queries:
+    - entities:
+        org:
+          schema: Organization
+          key: name
+          properties:
+            name:
+              column: name
+            country:
+              column: country
+            address:
+              column: address
