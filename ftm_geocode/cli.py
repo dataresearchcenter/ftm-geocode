@@ -1,3 +1,7 @@
+"""
+Command-line interface for ftm-geocode.
+"""
+
 from enum import StrEnum
 from typing import Optional
 
@@ -15,13 +19,15 @@ from ftmq.io import smart_read_proxies, smart_write_proxies
 from rich.console import Console
 from typing_extensions import Annotated
 
-from ftm_geocode import __version__, logic
+from ftm_geocode import __version__
 from ftm_geocode.cache import get_cache
-from ftm_geocode.geocode import GEOCODERS, geocode_line, geocode_proxy
+from ftm_geocode.ftm import make_address_proxy, result_to_proxy
+from ftm_geocode.geocode import geocode_line, geocode_proxy
 from ftm_geocode.io import FORMAT_FTM, LatLonRow, PostalRow
-from ftm_geocode.model import POSTAL_KEYS, GeocodingResult, get_address
+from ftm_geocode.model import GeocodingResult
 from ftm_geocode.nuts import get_nuts, get_proxy_nuts
-from ftm_geocode.settings import Settings
+from ftm_geocode.parsing import POSTAL_KEYS, get_components
+from ftm_geocode.settings import GEOCODERS, Settings
 
 settings = Settings()
 cli = typer.Typer(no_args_is_help=True)
@@ -53,18 +59,17 @@ class Opts:
 
 
 @cli.callback(invoke_without_command=True)
-def cli_store(
+def cli_main(
     version: Annotated[Optional[bool], typer.Option(..., help="Show version")] = False,
-    settings: Annotated[
-        Optional[bool], typer.Option(..., help="Show current settings")
+    show_settings: Annotated[
+        Optional[bool], typer.Option("--settings", help="Show current settings")
     ] = False,
 ):
     if version:
         print(__version__)
         raise typer.Exit()
-    if settings:
-        _settings = Settings()
-        console.print(_settings)
+    if show_settings:
+        console.print(Settings())
 
     configure_logging()
 
@@ -77,22 +82,31 @@ def format_line(
     output_format: IOFormats = Opts.IOFORMATS,
 ):
     """
-    Get formatted lines via libpostal parsing from csv or json input stream with
-    1 or more fields:
+    Get formatted lines via libpostal parsing from csv or json input stream.
+
+    Input fields:
         - "original_line": address line
-        - "country" (optional): country or iso code - good to know for libpostal
-        - "language" (optional): language or iso code - good to know for libpostal
-        - all other columns will be passed through to the result
+        - "country" (optional): country or iso code
+        - "language" (optional): language or iso code
+        - all other columns will be passed through
 
     Example:
-        ftmgeo format-line -i addresses.csv --input-format csv -o s3://my_bucket/addresses.json
+        ftmgeo format-line -i addresses.csv --input-format csv
     """
+    from ftm_geocode.formatting import format_address
+    from ftm_geocode.parsing import parse_address
+
     with ErrorHandler():
         if not settings.libpostal:
-            raise Exception("Please install and activate libpostal")
+            raise typer.BadParameter("Please install and activate libpostal")
         with ModelWriter(output_uri, output_format=output_format) as writer:
             for row in smart_stream_models(input_uri, PostalRow, input_format):
-                row = logic.format_line(row)
+                parsed = parse_address(
+                    row.original_line,
+                    country=row.country,
+                    language=row.language,
+                )
+                row.formatted_line = format_address(parsed)
                 writer.write(row)
 
 
@@ -104,19 +118,20 @@ def parse_components(
     output_format: IOFormats = Opts.IOFORMATS,
 ):
     """
-    Get components parsed from libpostal from csv or json input stream with 1 or
-    more fields:
+    Get components parsed from libpostal from csv or json input stream.
+
+    Input fields:
         - "original_line": address line
-        - "country" (optional): country or iso code - good to know for libpostal
-        - "language" (optional): language or iso code - good to know for libpostal
-        - all other columns will be passed through to the result
+        - "country" (optional): country or iso code
+        - "language" (optional): language or iso code
+        - all other columns will be passed through
 
     Example:
         cat data.json | ftmgeo parse-components --output-format csv > data.csv
     """
     with ErrorHandler():
         if not settings.libpostal:
-            raise Exception("Please install and activate libpostal")
+            raise typer.BadParameter("Please install and activate libpostal")
         rows = smart_stream_models(input_uri, PostalRow, input_format)
         row = next(rows)
         keys = row.model_dump().keys()
@@ -124,11 +139,19 @@ def parse_components(
         with Writer(
             output_uri, output_format=output_format, fieldnames=fieldnames
         ) as writer:
-            row = logic.parse_components(row)
-            writer.write(row)
+            # Process first row
+            components = get_components(
+                row.original_line, country=row.country, language=row.language
+            )
+            components.update(row.model_dump())
+            writer.write(components)
+            # Process remaining rows
             for row in rows:
-                row = logic.parse_components(row)
-                writer.write(row)
+                components = get_components(
+                    row.original_line, country=row.country, language=row.language
+                )
+                components.update(row.model_dump())
+                writer.write(components)
 
 
 @cli.command()
@@ -138,24 +161,24 @@ def map_entities(
     output_uri: str = Opts.OUT,
 ):
     """
-    Map csv/json input stream to FollowTheMoney Address proxies, requires
-    libpostal
+    Map csv/json input stream to FollowTheMoney Address proxies.
+
+    Requires libpostal.
 
     Required input field: `original_line`
     """
     with ErrorHandler():
         if not settings.libpostal:
-            raise Exception("Please install and activate libpostal")
+            raise typer.BadParameter("Please install and activate libpostal")
         rows = smart_stream_models(input_uri, PostalRow, input_format)
-        addresses = (
-            get_address(
+        proxies = (
+            make_address_proxy(
                 r.original_line,
                 country=r.country,
                 language=r.language,
             )
             for r in rows
         )
-        proxies = (a.to_proxy() for a in addresses)
         smart_write_proxies(output_uri, proxies)
 
 
@@ -169,22 +192,20 @@ def geocode(
     use_cache: Annotated[bool, typer.Option(help="Use cache database")] = True,
     cache_only: Annotated[bool, typer.Option(help="Only use cache database")] = False,
     rewrite_ids: Annotated[
-        bool, typer.Option(help="Rewrite `Address` entity ids to canonized id")
+        bool, typer.Option(help="Rewrite Address entity ids to canonized id")
     ] = True,
     apply_nuts: Annotated[bool, typer.Option(help="Add EU nuts codes")] = False,
 ):
     """
-    Geocode ftm entities or csv input to given output format using different
-    geocoders. When using csv input, these columns must be used:
+    Geocode ftm entities or csv input to given output format.
 
-    Columns:
+    For csv input, use these columns:
         - "original_line": address line
-        - "country" (optional): country or iso code - good to know for libpostal
-        - "language" (optional): language or iso code - good to know for libpostal
-        - all other columns will be passed through to the result
+        - "country" (optional): country or iso code
+        - "language" (optional): language or iso code
 
     Example:
-        ftmgeo geocode -i s3://my_bucket/entities.ftm.json > entities.geocoded.ftm.json
+        ftmgeo geocode -i entities.ftm.json > entities.geocoded.ftm.json
     """
     with ErrorHandler():
         if input_format == Formats.ftm:
@@ -196,7 +217,6 @@ def geocode(
                     use_cache=use_cache,
                     cache_only=cache_only,
                     apply_nuts=apply_nuts,
-                    output_format=output_format,
                     rewrite_ids=rewrite_ids,
                 )
                 for p in proxies
@@ -215,17 +235,18 @@ def geocode(
                 )
                 for t in tasks
             )
+
         out_format = FORMAT_CSV if output_format == FORMAT_CSV else FORMAT_JSON
         with Writer(output_uri, output_format=out_format) as writer:
             for res in results:
                 if res is not None:
                     if output_format == FORMAT_FTM:
                         if input_format != FORMAT_FTM:
-                            res = res.to_proxy()
+                            res = result_to_proxy(res)
                         res = res.to_dict()
                     else:
                         res = res.model_dump(mode="json")
-                writer.write(res)
+                    writer.write(res)
 
 
 @cli.command()
@@ -236,7 +257,7 @@ def apply_nuts(
     output_format: IOFormats = Opts.IOFORMATS,
 ):
     """
-    Apply EU NUTS codes to input stream
+    Apply EU NUTS codes to input stream.
 
     For ftm input, only Address entities with longitude and latitude properties
     will be considered.
@@ -244,7 +265,6 @@ def apply_nuts(
     For csv or json input, use these fields:
         - "lat": Latitude
         - "lon": Longitude
-        - all other fields will be passed through to the result
     """
     with ErrorHandler():
         if input_format == FORMAT_FTM:
@@ -270,7 +290,7 @@ def cache_iterate(
     apply_nuts: bool = Opts.APPLY_NUTS,
 ):
     """
-    Export cached addresses to csv or ftm entities
+    Export cached addresses to csv or ftm entities.
     """
     with ErrorHandler():
         cache = get_cache()
@@ -282,7 +302,7 @@ def cache_iterate(
                 for res in results:
                     writer.write(res)
         else:
-            proxies = (r.to_proxy() for r in results)
+            proxies = (result_to_proxy(r) for r in results)
             smart_write_proxies(output_uri, proxies)
 
 
@@ -293,22 +313,13 @@ def cache_populate(
     apply_nuts: bool = Opts.APPLY_NUTS,
 ):
     """
-    Populate cache from csv or json input with these fields:\n
-        address_id: str\n
-        canonical_id: str\n
-        original_line: str\n
-        result_line: str\n
-        country: str\n
-        lat: float\n
-        lon: float\n
-        geocoder: str\n
-        geocoder_place_id: str | None = None\n
-        geocoder_raw: str | None = None\n
-        nuts0_id: str | None = None\n
-        nuts1_id: str | None = None\n
-        nuts2_id: str | None = None\n
-        nuts3_id: str | None = None\n
-        ts: datetime | None = None\n
+    Populate cache from csv or json input.
+
+    Required fields:
+        address_id, original_line, result_line, country, lat, lon, geocoder
+
+    Optional fields:
+        geocoder_place_id, geocoder_raw, nuts1_id, nuts2_id, nuts3_id, ts
     """
     with ErrorHandler():
         cache = get_cache()

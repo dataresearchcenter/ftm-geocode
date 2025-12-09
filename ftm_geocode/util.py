@@ -1,77 +1,32 @@
-from typing import Any, Generator, Iterable
+"""
+Utility functions.
+"""
+
+from typing import Any, Iterable
 from unicodedata import normalize as _unormalize
 
 from banal import ensure_list
-from followthemoney import EntityProxy
-from followthemoney.types import registry
-from followthemoney.util import make_entity_id
-from ftmq.util import get_country_code, get_country_name
-from normality import collapse_spaces
+from ftmq.util import get_country_code, get_country_name  # noqa: F401
 from normality import normalize as _normalize
-from rigour.addresses import normalize_address
-
-
-def make_address_id(line: str, country: str | None = None, **kwargs) -> str:
-    value = make_entity_id(normalize_address(line, latinize=True, min_length=3))
-    assert value, f"Invalid address line for id: {line}"
-    ccode = get_country_code(country)
-    if ccode is not None:
-        value = f"{ccode}-{value}"
-    return f"addr-{value}"
+from normality import squash_spaces
 
 
 def get_first(value: str | Iterable[Any] | None, default: Any | None = None) -> Any:
-    value = ensure_list(value)
-    if value:
-        return value[0]
+    """Get first value from a list or return default."""
+    for v in ensure_list(value):
+        return v
     return default
 
 
-def clean_country_codes(values: Iterable[str] | str | None) -> set[str]:
-    codes = set()
-    for value in ensure_list(values):
-        code = get_country_code(value)
-        if code is not None:
-            codes.add(code)
-    return codes
-
-
-def clean_country_names(values: Iterable[str] | str | None) -> set[str]:
-    names = set()
-    for value in ensure_list(values):
-        name = get_country_name(value)
-        if name is not None:
-            names.add(name)
-    return names
-
-
 def normalize(value: str) -> str:
-    return _unormalize("NFC", collapse_spaces(value))
+    """Normalize a string for geocoding queries."""
+    return _unormalize("NFC", squash_spaces(value))
 
 
 def normalize_google(value: str) -> str:
-    # Google error: "One of the input parameters contains a non-UTF-8 string"
+    """
+    Normalize for Google geocoder.
+
+    Google errors on non-UTF-8 strings.
+    """
     return ", ".join(_normalize(v, lowercase=False) for v in value.split(","))
-
-
-def get_proxy_addresses(proxy: EntityProxy) -> Generator[str, None, None]:
-    if proxy.schema.is_a("Address"):
-        yield proxy.caption
-    else:
-        for value in proxy.get_type_values(registry.address):
-            yield value
-
-
-def apply_address(
-    proxy: EntityProxy, address: EntityProxy, rewrite_id: bool | None = True
-) -> EntityProxy:
-    if proxy.schema.is_a("Address"):
-        if rewrite_id:
-            proxy.id = address.id
-        else:
-            address.id = proxy.id
-        return proxy.merge(address)
-    proxy.add("addressEntity", address.id)  # FIXME delete old reference?
-    proxy.add("address", address.caption)
-    proxy.add("country", address.get("country"))
-    return proxy
