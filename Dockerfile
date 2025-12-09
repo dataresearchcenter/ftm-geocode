@@ -9,12 +9,12 @@ WORKDIR /app/ftm-geocode
 COPY pyproject.toml setup.py VERSION README.md ./
 
 # Install dependencies (this layer is cached unless pyproject.toml changes)
-RUN pip install --no-cache-dir -U pip setuptools && \
-    pip install --no-cache-dir ".[postal]"
+RUN pip install --no-cache-dir -U pip setuptools
 
 # Copy source code and data last (changes here don't invalidate dependency cache)
 COPY ftm_geocode ./ftm_geocode
 COPY data ./data
+RUN pip install --no-cache-dir ".[postal]"
 
 ENV PROCRASTINATE_APP="ftm_geocode.tasks.app"
 
