@@ -4,9 +4,11 @@ from typing import Any, Generator, TypedDict
 
 import geopy.geocoders
 from anystore import anycache
+from anystore.logging import get_logger
 from banal import clean_dict
+from followthemoney import ValueEntity
 from followthemoney.proxy import EntityProxy
-from ftmq.util import ensure_proxy
+from ftmq.util import ensure_entity
 from geopy.adapters import AdapterHTTPError
 from geopy.exc import GeocoderQueryError, GeocoderServiceError
 from geopy.extra.rate_limiter import RateLimiter
@@ -15,7 +17,6 @@ from normality import collapse_spaces
 
 from ftm_geocode.cache import get_cache, make_cache_key
 from ftm_geocode.io import FORMAT_FTM, Formats
-from ftm_geocode.logging import get_logger
 from ftm_geocode.model import Address, GeocodingResult, get_canonical_id
 from ftm_geocode.settings import GEOCODERS, Settings
 from ftm_geocode.util import (
@@ -89,6 +90,9 @@ def _geocode(
     **ctx: GeocodingContext,
 ) -> GeocodingResult | None:
     if cache_only:
+        return
+    if len(value) > 255:  # arbitrary guess
+        log.warn(f"Geocoding value too long ({len(value)}), skipping", value=value)
         return
     geolocator = Geocoder(geocoder)
     value = geolocator.get_query(value, **ctx)
@@ -172,7 +176,7 @@ def geocode_proxy(
     output_format: Formats | None = FORMAT_FTM,
     rewrite_ids: bool | None = True,
 ) -> Generator[EntityProxy | GeocodingResult, None, None]:
-    proxy = ensure_proxy(proxy)
+    proxy = ensure_entity(proxy, ValueEntity)
     if not proxy.schema.is_a("Thing"):
         if output_format == FORMAT_FTM:
             yield proxy

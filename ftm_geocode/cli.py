@@ -10,6 +10,7 @@ from anystore.io import (
     Writer,
     smart_stream_models,
 )
+from anystore.logging import configure_logging, get_logger
 from ftmq.io import smart_read_proxies, smart_write_proxies
 from rich.console import Console
 from typing_extensions import Annotated
@@ -18,7 +19,6 @@ from ftm_geocode import __version__, logic
 from ftm_geocode.cache import get_cache
 from ftm_geocode.geocode import GEOCODERS, geocode_line, geocode_proxy
 from ftm_geocode.io import FORMAT_FTM, LatLonRow, PostalRow
-from ftm_geocode.logging import configure_logging, get_logger
 from ftm_geocode.model import POSTAL_KEYS, GeocodingResult, get_address
 from ftm_geocode.nuts import get_nuts, get_proxy_nuts
 from ftm_geocode.settings import Settings
@@ -55,18 +55,18 @@ class Opts:
 @cli.callback(invoke_without_command=True)
 def cli_store(
     version: Annotated[Optional[bool], typer.Option(..., help="Show version")] = False,
+    settings: Annotated[
+        Optional[bool], typer.Option(..., help="Show current settings")
+    ] = False,
 ):
     if version:
         print(__version__)
         raise typer.Exit()
+    if settings:
+        _settings = Settings()
+        console.print(_settings)
+
     configure_logging()
-
-
-@cli.command()
-def config():
-    """Show current configuration"""
-    with ErrorHandler():
-        console.print(settings)
 
 
 @cli.command()

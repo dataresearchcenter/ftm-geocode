@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from ftmq.util import make_proxy
+from ftmq.util import make_entity
 from normality import collapse_spaces
 
 from ftm_geocode import util
@@ -16,14 +16,14 @@ ADDR = collapse_spaces(ADDR)
 
 
 class ProxyTestCase(TestCase):
-    entity = make_proxy(
+    entity = make_entity(
         {
             "id": "ent",
             "schema": "LegalEntity",
             "properties": {"address": [ADDR]},
         }
     )
-    addressEntity = make_proxy(
+    addressEntity = make_entity(
         {
             "id": "addr",
             "schema": "Address",

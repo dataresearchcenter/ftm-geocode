@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from anystore.io import FORMAT_CSV
-from ftmq.util import make_proxy
+from ftmq.util import make_entity
 from normality import collapse_spaces
 
 from ftm_geocode import geocode
@@ -35,7 +35,7 @@ class GeocodingTestCase(TestCase):
         self.assertEqual(result.geocoder, "nominatim")
 
     def test_geocode_entity(self):
-        proxy = make_proxy(
+        proxy = make_entity(
             {
                 "id": "test-org",
                 "schema": "Organization",
@@ -49,7 +49,7 @@ class GeocodingTestCase(TestCase):
             updatedProxy.first("addressEntity").startswith("addr-osm-"),
         )
         self.assertIn(
-            "Cowley Road, Chesterton, Cambridge, Cambridgeshire, Cambridgeshire and Peterborough, England, CB4 0WS, United Kingdom",
+            "Chesterton, Cowley Road, Cambridge Cb4 0Ws, England",
             addressProxy.get("full"),
         )
         self.assertEqual(addressProxy.first("country"), "gb")
@@ -57,7 +57,7 @@ class GeocodingTestCase(TestCase):
             self.assertEqual(addressProxy.first("city"), "Cambridge")
 
     def test_geocode_address_entity(self):
-        proxy = make_proxy(
+        proxy = make_entity(
             {
                 "id": "test-addr",
                 "schema": "Address",
@@ -68,7 +68,7 @@ class GeocodingTestCase(TestCase):
             geocode.geocode_proxy([self.geocoder], proxy, use_cache=False)
         )
         self.assertIn(
-            "Cowley Road, Chesterton, Cambridge, Cambridgeshire, Cambridgeshire and Peterborough, England, CB4 0WS, United Kingdom",
+            "Chesterton, Cowley Road, Cambridge Cb4 0Ws, England",
             addressProxy.get("full"),
         )
         self.assertEqual(addressProxy.first("country"), "gb")

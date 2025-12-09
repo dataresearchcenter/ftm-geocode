@@ -4,16 +4,15 @@ from typing import Any, TypeAlias, TypedDict
 
 import lazy_import
 import orjson
+from anystore.types import SDict
 from anystore.util import clean_dict
 from banal import is_mapping
-from followthemoney import model
+from followthemoney import EntityProxy, ValueEntity, model
 from followthemoney.util import join_text
-from ftmq.types import SDict
-from ftmq.util import clean_string, make_proxy
-from nomenklatura.entity import CE, CompositeEntity
+from ftmq.util import clean_string, make_entity
 from normality import collapse_spaces
 from pydantic import BaseModel, create_model, field_validator, model_validator
-from rigour.addresses import clean_address, format_address_line, normalize_address
+from rigour.addresses import clean_address, format_address_line
 
 from ftm_geocode.cache import make_cache_key
 from ftm_geocode.nuts import get_nuts
@@ -23,6 +22,7 @@ from ftm_geocode.util import (
     clean_country_names,
     get_country_code,
     get_first,
+    make_address_id,
 )
 
 settings = Settings()
@@ -58,7 +58,7 @@ class GeocodingResult(BaseModel):
                 self.nuts2_id = nuts.nuts2_id
                 self.nuts3_id = nuts.nuts3_id
 
-    def to_proxy(self) -> CE:
+    def to_proxy(self) -> ValueEntity:
         address = Address.from_result(self)
         proxy = address.to_proxy()
         proxy.add("region", self.nuts)
@@ -162,11 +162,9 @@ class AddressBase(BaseModel):
     def get_first(self, attr, default: Any | None = None) -> str | None:
         return get_first(getattr(self, attr, None), default)
 
-    def get_id(self) -> str:  # serves as cache key
-        line = normalize_address(self.get_formatted_line(), latinize=True)
-        key = make_cache_key(line, country=self.get_first("country"))
-        assert key is not None
-        return key
+    def get_id(self, formatted_line: str | None = None) -> str:  # serves as cache key
+        formatted_line = formatted_line or self.get_formatted_line()
+        return make_address_id(formatted_line, self.get_first("country"))
 
     def to_dict(self) -> dict[str, list[str]]:
         return clean_dict(self.model_dump())
@@ -217,6 +215,8 @@ class PostalAddressBase(AddressBase):
             # postal screams if language or country is None
             ctx = {k: ctx.get(k, "") or "" for k in ("language", "country")}
             result = parse_address(value, **ctx)
+            if "full" not in dict(result):
+                result.append((value, "full"))
         else:
             result = [(value, "full")]
         return cls.from_postal_result(result, **ctx)
@@ -248,15 +248,15 @@ class Address(FtmAddressBase):
             return f"addr-osm-{osmId}"
         if googlePlaceId:
             return f"addr-google-{googlePlaceId}"
-        return super().get_id()
+        return super().get_id(self.get_formatted_line())
 
-    def to_proxy(self) -> CE:
-        proxy = make_proxy(
+    def to_proxy(self) -> ValueEntity:
+        proxy = make_entity(
             {
                 "id": self.get_id(),
                 "schema": "Address",
                 "properties": clean_dict(self.model_dump()),
-            }
+            },
         )
         proxy.set("full", self.get_formatted_line())
         return proxy
@@ -311,14 +311,14 @@ class Address(FtmAddressBase):
         return address
 
     @classmethod
-    def from_proxy(cls, proxy: CE) -> "Address":
+    def from_proxy(cls, proxy: EntityProxy) -> "Address":
         data = proxy.to_dict()
         address = cls(**data["properties"])
         address._id = proxy.id
         return address
 
 
-AddressInput: TypeAlias = str | Address | PostalAddress | CE | GeocodingResult
+AddressInput: TypeAlias = str | Address | PostalAddress | EntityProxy | GeocodingResult
 
 
 def get_address(
@@ -328,7 +328,7 @@ def get_address(
         addr = Address.from_string(data, **ctx)
     elif isinstance(data, PostalAddress):
         addr = Address.from_postal(data, **ctx)
-    elif isinstance(data, CompositeEntity):
+    elif isinstance(data, EntityProxy):
         addr = Address.from_proxy(data)
     elif isinstance(data, GeocodingResult):
         addr = Address.from_result(data)
@@ -347,7 +347,7 @@ def get_components(data: AddressInput, **ctx: PostalContext) -> dict[str, str | 
 
     if isinstance(data, str):
         data = PostalAddress.from_string(data, **ctx)
-    elif isinstance(data, CompositeEntity):
+    elif isinstance(data, EntityProxy):
         data = PostalAddress.from_string(data.caption, **ctx)
     elif isinstance(data, GeocodingResult):
         data = PostalAddress.from_string(GeocodingResult.result_line, **ctx)

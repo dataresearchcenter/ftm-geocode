@@ -22,6 +22,9 @@ class ModelTestCase(TestCase):
             self.assertDictEqual(
                 address.to_dict(),
                 {
+                    "full": [
+                        "Openstreetmap Foundation St John’S Innovation Centre Cowley Road Cambridge Cb4 0Ws United Kingdom"
+                    ],
                     "remarks": ["Openstreetmap Foundation St John'S Innovation Centre"],
                     "street": ["Cowley Road"],
                     "city": ["Cambridge"],
@@ -36,9 +39,11 @@ class ModelTestCase(TestCase):
                 proxy.to_dict(),
                 {
                     "id": "addr-gb-7305a0eaef6fdebc0f6bac6066fd1e26fd7fd54a",
-                    "caption": "Cambridge",
                     "schema": "Address",
                     "properties": {
+                        "full": [
+                            "Openstreetmap Foundation St John'S Innovation Centre, Cowley Road, Cambridge Cb4 0Ws"
+                        ],
                         "remarks": [
                             "Openstreetmap Foundation St John'S Innovation Centre"
                         ],
@@ -60,6 +65,7 @@ class ModelTestCase(TestCase):
             self.assertDictEqual(
                 address,
                 {
+                    "full": ["Duda-Epureni, 737230, Ro"],
                     "remarks": ["737230", "Duda-Epureni"],
                     "street": ["Ro"],
                     "country": ["ro"],
@@ -80,6 +86,7 @@ class ModelTestCase(TestCase):
             self.assertEqual(
                 address._postal.to_dict(),
                 {
+                    "full": "Openstreetmap Foundation St John’S Innovation Centre Cowley Road Cambridge Cb4 0Ws United Kingdom",
                     "country_code": "gb",
                     "house": "Openstreetmap Foundation St John'S Innovation Centre",
                     "road": "Cowley Road",

@@ -2,17 +2,17 @@ from typing import Any, Generator, Iterable
 from unicodedata import normalize as _unormalize
 
 from banal import ensure_list
+from followthemoney import EntityProxy
 from followthemoney.types import registry
 from followthemoney.util import make_entity_id
 from ftmq.util import get_country_code, get_country_name
-from nomenklatura.entity import CE
 from normality import collapse_spaces
 from normality import normalize as _normalize
 from rigour.addresses import normalize_address
 
 
 def make_address_id(line: str, country: str | None = None, **kwargs) -> str:
-    value = make_entity_id(normalize_address(line))
+    value = make_entity_id(normalize_address(line, latinize=True, min_length=3))
     assert value, f"Invalid address line for id: {line}"
     ccode = get_country_code(country)
     if ccode is not None:
@@ -54,7 +54,7 @@ def normalize_google(value: str) -> str:
     return ", ".join(_normalize(v, lowercase=False) for v in value.split(","))
 
 
-def get_proxy_addresses(proxy: CE) -> Generator[str, None, None]:
+def get_proxy_addresses(proxy: EntityProxy) -> Generator[str, None, None]:
     if proxy.schema.is_a("Address"):
         yield proxy.caption
     else:
@@ -62,7 +62,9 @@ def get_proxy_addresses(proxy: CE) -> Generator[str, None, None]:
             yield value
 
 
-def apply_address(proxy: CE, address: CE, rewrite_id: bool | None = True) -> CE:
+def apply_address(
+    proxy: EntityProxy, address: EntityProxy, rewrite_id: bool | None = True
+) -> EntityProxy:
     if proxy.schema.is_a("Address"):
         if rewrite_id:
             proxy.id = address.id

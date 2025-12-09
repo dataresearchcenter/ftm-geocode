@@ -1,27 +1,27 @@
 from unittest import TestCase
 
-from ftmq.util import make_proxy
+from ftmq.util import make_entity
 
 from ftm_geocode import geocode, nuts
 from ftm_geocode.model import get_coords
 
 
 class NutsTestCase(TestCase):
-    addressEntity = make_proxy(
+    addressEntity = make_entity(
         {
             "id": "addr",
             "schema": "Address",
             "properties": {"full": ["Alexanderplatz, Berlin, Germany"]},
         }
     )
-    ukAddress = make_proxy(
+    ukAddress = make_entity(
         {
             "id": "uk",
             "schema": "Address",
             "properties": {"full": ["Cowley Road, Cambridge, CB4 0WS, United Kingdom"]},
         }
     )
-    outside = make_proxy(
+    outside = make_entity(
         {
             "id": "outside",
             "schema": "Address",

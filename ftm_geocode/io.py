@@ -1,9 +1,9 @@
 from typing import Generator, Iterator, Literal, TypeAlias
 
+from anystore.logging import get_logger
 from ftmq.util import get_country_code
 from pydantic import BaseModel, ConfigDict
 
-from ftm_geocode.logging import get_logger
 from ftm_geocode.model import GeocodingResult, PostalContext
 
 log = get_logger(__name__)

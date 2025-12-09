@@ -1,8 +1,8 @@
 from functools import cache
 
-from anystore.store import BaseStore, get_store
+from anystore.logging import get_logger
+from anystore.store import BaseStore
 
-from ftm_geocode.logging import get_logger
 from ftm_geocode.settings import Settings
 from ftm_geocode.util import make_address_id
 
@@ -20,7 +20,8 @@ def make_cache_key(value, **kwargs) -> str | None:
 def get_cache() -> BaseStore:
     from ftm_geocode.model import GeocodingResult
 
-    kwargs = settings.cache.model_dump()
-    kwargs["model"] = GeocodingResult
-    kwargs["store_none_values"] = False
-    return get_store(**kwargs)
+    store = settings.store.to_store()
+    store.key_prefix = store.key_prefix or "ftm-geocode"
+    store.model = GeocodingResult
+    store.store_none_values = False
+    return store

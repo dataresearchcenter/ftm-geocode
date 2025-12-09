@@ -9,12 +9,12 @@ from functools import cache
 from typing import Any, Self
 
 import geopandas as gpd
+from anystore.logging import get_logger
+from followthemoney import EntityProxy
 from ftmq.util import get_country_name
-from nomenklatura.entity import CE
 from pydantic import BaseModel
 from shapely.geometry import Point
 
-from ftm_geocode.logging import get_logger
 from ftm_geocode.settings import Settings
 
 log = get_logger(__name__)
@@ -125,7 +125,7 @@ def get_nuts(lon: Any | None = None, lat: Any | None = None) -> Nuts3 | None:
         log.error("Invalid coordinates: (%s, %s)" % (lon, lat))
 
 
-def get_proxy_nuts(proxy: CE) -> ProxyNuts | None:
+def get_proxy_nuts(proxy: EntityProxy) -> ProxyNuts | None:
     if not proxy.schema.is_a("Address"):
         return
     try:
