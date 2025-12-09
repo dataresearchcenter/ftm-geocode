@@ -239,6 +239,11 @@ class Address(FtmAddressBase):
     _id: str | None = None
     _postal: PostalAddress | None = None
 
+    def to_dict(self) -> dict[str, list[str]]:
+        data = clean_dict(self.model_dump())
+        data["full"] = [self.get_formatted_line()]
+        return data
+
     def get_id(self) -> str:
         # use place ids to generate ids
         if self._id:

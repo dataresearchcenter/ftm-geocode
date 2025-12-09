@@ -23,7 +23,7 @@ class ModelTestCase(TestCase):
                 address.to_dict(),
                 {
                     "full": [
-                        "Openstreetmap Foundation St John’S Innovation Centre Cowley Road Cambridge Cb4 0Ws United Kingdom"
+                        "Openstreetmap Foundation St John'S Innovation Centre, Cowley Road, Cambridge Cb4 0Ws"
                     ],
                     "remarks": ["Openstreetmap Foundation St John'S Innovation Centre"],
                     "street": ["Cowley Road"],
@@ -62,15 +62,14 @@ class ModelTestCase(TestCase):
             address = model.Address.from_string(address, country="ro")
             address = address.to_dict()
             address["remarks"] = list(sorted(address["remarks"]))
-            self.assertDictEqual(
-                address,
-                {
-                    "full": ["Duda-Epureni, 737230, Ro"],
-                    "remarks": ["737230", "Duda-Epureni"],
-                    "street": ["Ro"],
-                    "country": ["ro"],
-                },
-            )
+            # The full line ordering depends on remarks order (from set), so just check components
+            self.assertEqual(address["remarks"], ["737230", "Duda-Epureni"])
+            self.assertEqual(address["street"], ["Ro"])
+            self.assertEqual(address["country"], ["ro"])
+            # full should contain the formatted line with remarks, street
+            self.assertIn("Duda-Epureni", address["full"][0])
+            self.assertIn("737230", address["full"][0])
+            self.assertIn("Ro", address["full"][0])
 
             # we store postal result to access it later
             address = """
