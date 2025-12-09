@@ -2,88 +2,69 @@ from unittest import TestCase
 
 from followthemoney.proxy import EntityProxy
 
-from ftm_geocode import model
+from ftm_geocode.ftm import make_address_proxy
+from ftm_geocode.parsing import ParsedAddress, get_components, parse_address
 from ftm_geocode.settings import Settings
 
 
-class ModelTestCase(TestCase):
-    def test_model(self):
+class ParsingTestCase(TestCase):
+    def test_parse_address(self):
         settings = Settings()
         if settings.libpostal:
             address = """
                 OpenStreetMap Foundation
-                St John’s Innovation Centre
+                St John's Innovation Centre
                 Cowley Road
                 Cambridge
                 CB4 0WS
                 United Kingdom
             """
-            address = model.Address.from_string(address)
-            self.assertDictEqual(
-                address.to_dict(),
-                {
-                    "remarks": ["Openstreetmap Foundation St John'S Innovation Centre"],
-                    "street": ["Cowley Road"],
-                    "city": ["Cambridge"],
-                    "postalCode": ["Cb4 0Ws"],
-                    "country": ["gb"],
-                },
-            )
+            parsed = parse_address(address)
+            self.assertIsInstance(parsed, ParsedAddress)
+            self.assertIn("Cowley Road", parsed.road)
+            self.assertIn("Cambridge", parsed.city)
+            self.assertEqual(parsed.country_code, "gb")
 
-            proxy = address.to_proxy()
-            self.assertIsInstance(proxy, EntityProxy)
-            self.assertDictEqual(
-                proxy.to_dict(),
-                {
-                    "id": "addr-gb-7305a0eaef6fdebc0f6bac6066fd1e26fd7fd54a",
-                    "caption": "Cambridge",
-                    "schema": "Address",
-                    "properties": {
-                        "remarks": [
-                            "Openstreetmap Foundation St John'S Innovation Centre"
-                        ],
-                        "street": ["Cowley Road"],
-                        "city": ["Cambridge"],
-                        "postalCode": ["Cb4 0Ws"],
-                        "country": ["gb"],
-                    },
-                    "referents": [],
-                    "datasets": ["default"],
-                },
-            )
+            # Get components as dict
+            components = get_components(address)
+            self.assertIn("road", components)
+            self.assertIn("city", components)
+            self.assertEqual(components["country_code"], "gb")
 
-            # less info, not so good result
-            address = "DUDA-EPURENI, 737230, RO"
-            address = model.Address.from_string(address, country="ro")
-            address = address.to_dict()
-            address["remarks"] = list(sorted(address["remarks"]))
-            self.assertDictEqual(
-                address,
-                {
-                    "remarks": ["737230", "Duda-Epureni"],
-                    "street": ["Ro"],
-                    "country": ["ro"],
-                },
-            )
 
-            # we store postal result to access it later
+class FtmTestCase(TestCase):
+    def test_make_address_proxy(self):
+        settings = Settings()
+        if settings.libpostal:
             address = """
                 OpenStreetMap Foundation
-                St John’s Innovation Centre
+                St John's Innovation Centre
                 Cowley Road
                 Cambridge
                 CB4 0WS
                 United Kingdom
             """
-            address = model.Address.from_string(address)
-            self.assertIsInstance(address._postal, model.PostalAddress)
-            self.assertEqual(
-                address._postal.to_dict(),
-                {
-                    "country_code": "gb",
-                    "house": "Openstreetmap Foundation St John'S Innovation Centre",
-                    "road": "Cowley Road",
-                    "postcode": "Cb4 0Ws",
-                    "city": "Cambridge",
-                },
+            proxy = make_address_proxy(address)
+            self.assertIsInstance(proxy, EntityProxy)
+            self.assertEqual(proxy.schema.name, "Address")
+            self.assertTrue(proxy.id.startswith("addr-"))
+            self.assertIn("Cowley Road", proxy.first("street"))
+            self.assertEqual(proxy.first("city"), "Cambridge")
+
+            # With coordinates
+            proxy = make_address_proxy(
+                address,
+                lat=52.2297,
+                lon=0.1526,
             )
+            self.assertEqual(proxy.first("latitude"), "52.2297")
+            self.assertEqual(proxy.first("longitude"), "0.1526")
+
+            # With place IDs
+            proxy = make_address_proxy(address, osm_id="12345")
+            self.assertEqual(proxy.id, "addr-osm-12345")
+            self.assertEqual(proxy.first("osmId"), "12345")
+
+            proxy = make_address_proxy(address, google_place_id="ChIJ...")
+            self.assertEqual(proxy.id, "addr-google-ChIJ...")
+            self.assertEqual(proxy.first("googlePlaceId"), "ChIJ...")

@@ -1,27 +1,28 @@
 from unittest import TestCase
 
-from ftmq.util import make_proxy
+from ftmq.util import make_entity
 
-from ftm_geocode import geocode, nuts
-from ftm_geocode.model import get_coords
+from ftm_geocode import nuts
+from ftm_geocode.ftm import get_proxy_coords
+from ftm_geocode.geocode import GEOCODERS, geocode_line, geocode_proxy
 
 
 class NutsTestCase(TestCase):
-    addressEntity = make_proxy(
+    addressEntity = make_entity(
         {
             "id": "addr",
             "schema": "Address",
             "properties": {"full": ["Alexanderplatz, Berlin, Germany"]},
         }
     )
-    ukAddress = make_proxy(
+    ukAddress = make_entity(
         {
             "id": "uk",
             "schema": "Address",
             "properties": {"full": ["Cowley Road, Cambridge, CB4 0WS, United Kingdom"]},
         }
     )
-    outside = make_proxy(
+    outside = make_entity(
         {
             "id": "outside",
             "schema": "Address",
@@ -33,13 +34,13 @@ class NutsTestCase(TestCase):
     )
 
     def test_nuts_apply(self):
-        res = geocode.geocode_proxy([geocode.GEOCODERS.nominatim], self.addressEntity)
+        res = geocode_proxy([GEOCODERS.nominatim], self.addressEntity)
         address = list(res)[0]
-        coords = get_coords(address)
+        coords = get_proxy_coords(address)
         n3 = nuts.get_nuts(*coords)
         self.assertIsInstance(n3, nuts.Nuts3)
         self.assertDictEqual(
-            n3.dict(),
+            n3.model_dump(),
             {
                 "nuts1": "Berlin",
                 "nuts1_id": "DE3",
@@ -52,12 +53,12 @@ class NutsTestCase(TestCase):
                 "path": "DE/DE3/DE30/DE300",
             },
         )
-        res = geocode.geocode_proxy([geocode.GEOCODERS.nominatim], self.ukAddress)
+        res = geocode_proxy([GEOCODERS.nominatim], self.ukAddress)
         address = list(res)[0]
-        coords = get_coords(address)
+        coords = get_proxy_coords(address)
         n3 = nuts.get_nuts(*coords)
         self.assertDictEqual(
-            n3.dict(),
+            n3.model_dump(),
             {
                 "nuts1": "East of England",
                 "nuts1_id": "UKH",
@@ -71,23 +72,21 @@ class NutsTestCase(TestCase):
             },
         )
 
-        res = geocode.geocode_proxy([geocode.GEOCODERS.arcgis], self.outside)
+        res = geocode_proxy([GEOCODERS.arcgis], self.outside)
         address = list(res)[0]
-        coords = get_coords(address)
+        coords = get_proxy_coords(address)
         n3 = nuts.get_nuts(*coords)
         self.assertIsNone(n3)
 
     def test_nuts_apply_to_result(self):
-        res = geocode.geocode_line(
-            [geocode.GEOCODERS.nominatim], self.addressEntity.caption
-        )
+        res = geocode_line([GEOCODERS.nominatim], self.addressEntity.caption)
         res.apply_nuts()
         self.assertEqual(res.nuts1_id, "DE3")
         self.assertEqual(res.nuts3_id, "DE300")
 
     def test_nuts_apply_during_geocode(self):
-        res = geocode.geocode_line(
-            [geocode.GEOCODERS.nominatim],
+        res = geocode_line(
+            [GEOCODERS.nominatim],
             "Axel Springer Straße, Berlin",
             country="de",
             use_cache=False,
@@ -96,8 +95,8 @@ class NutsTestCase(TestCase):
         self.assertEqual(res.nuts1_id, "DE3")
         self.assertEqual(res.nuts3_id, "DE300")
 
-        res = geocode.geocode_line(
-            [geocode.GEOCODERS.nominatim],
+        res = geocode_line(
+            [GEOCODERS.nominatim],
             "Axel Springer Straße, Berlin",
             country="de",
             use_cache=True,

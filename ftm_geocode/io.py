@@ -1,10 +1,9 @@
 from typing import Generator, Iterator, Literal, TypeAlias
 
-from ftmq.util import get_country_code
+from anystore.logging import get_logger
 from pydantic import BaseModel, ConfigDict
 
-from ftm_geocode.logging import get_logger
-from ftm_geocode.model import GeocodingResult, PostalContext
+from ftm_geocode.model import GeocodingResult
 
 log = get_logger(__name__)
 
@@ -20,10 +19,6 @@ class PostalRow(BaseModel):
     language: str | None = None
 
     model_config = ConfigDict(extra="allow")
-
-    @property
-    def ctx(self) -> PostalContext:
-        return {"country": get_country_code(self.country), "language": self.language}
 
 
 class LatLonRow(BaseModel):
