@@ -86,6 +86,7 @@ class ModelTestCase(TestCase):
                 address._postal.to_dict(),
                 {
                     "full": "Openstreetmap Foundation St John’S Innovation Centre Cowley Road Cambridge Cb4 0Ws United Kingdom",
+                    "country": "United Kingdom",
                     "country_code": "gb",
                     "house": "Openstreetmap Foundation St John'S Innovation Centre",
                     "road": "Cowley Road",

@@ -1,17 +1,17 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, TypeAlias, TypedDict
+from typing import Any, Self, TypeAlias, TypedDict
 
 import lazy_import
 import orjson
 from anystore.types import SDict
 from anystore.util import clean_dict
 from banal import is_mapping
-from followthemoney import EntityProxy, ValueEntity, model
+from followthemoney import EntityProxy, ValueEntity
 from followthemoney.util import join_text
 from ftmq.util import clean_string, make_entity
-from normality import collapse_spaces
-from pydantic import BaseModel, create_model, field_validator, model_validator
+from normality import squash_spaces
+from pydantic import BaseModel, field_validator, model_validator
 from rigour.addresses import clean_address, format_address_line
 
 from ftm_geocode.cache import make_cache_key
@@ -27,6 +27,13 @@ from ftm_geocode.util import (
 
 settings = Settings()
 USE_LIBPOSTAL = settings.libpostal
+
+Values: TypeAlias = list[str] | None
+
+
+class PostalContext(TypedDict):
+    language: str | None
+    country: str | None
 
 
 class GeocodingResult(BaseModel):
@@ -87,97 +94,70 @@ class GeocodingResult(BaseModel):
         return {}
 
 
+# libpostal parser labels -> FTM Address properties
 # https://github.com/openvenues/libpostal#parser-labels
-# postal -> ftm
-# FIXME extend ftm schema to align with postal output?
-MAPPING = (
-    ("full", "full"),  # used as dummy prop when USE_LIBPOSTAL=False
-    # venue name e.g. "Brooklyn Academy of Music", and building names
-    # e.g. "Empire State Building"
-    ("house", "remarks"),
-    # for category queries like "restaurants", etc.
-    ("category", "keywords"),
-    # phrases like "in", "near", etc. used after a category phrase to help with parsing
-    # queries like "restaurants in Brooklyn"
-    ("near", "remarks"),
-    # usually refers to the external (street-facing) building number. In some countries
-    # this may be a compound, hyphenated number which also includes an apartment number,
-    # or a block number (a la Japan), but libpostal will just call it the house_number
-    # for simplicity.
-    ("house_number", "remarks"),
-    # street name(s)
-    ("road", "street"),
-    # an apartment, unit, office, lot, or other secondary unit designator
-    ("unit", "remarks"),
-    # expressions indicating a floor number e.g. "3rd Floor", "Ground Floor", etc.
-    ("level", "remarks"),
-    # numbered/lettered staircase
-    ("staircase", "remarks"),
-    # numbered/lettered entrance
-    ("entrance", "remarks"),
-    # post office box: typically found in non-physical (mail-only) addresses
-    ("po_box", "postOfficeBox"),
-    # postal codes used for mail sorting
-    ("postcode", "postalCode"),
-    # usually an unofficial neighborhood name like "Harlem", "South Bronx", or
-    # "Crown Heights"
-    ("suburb", "remarks"),
-    # these are usually boroughs or districts within a city that serve some official
-    # purpose e.g. "Brooklyn" or "Hackney" or "Bratislava IV"
-    ("city_district", "remarks"),
-    # any human settlement including cities, towns, villages, hamlets, localities, etc.
-    ("city", "city"),
-    # named islands e.g. "Maui"
-    ("island", "region"),
-    # usually a second-level administrative division or county.
-    ("state_district", "region"),
-    # a first-level administrative division. Scotland, Northern Ireland, Wales, and
-    # England in the UK are mapped to "state" as well (convention used in OSM,
-    # GeoPlanet, etc.)
-    ("state", "state"),
-    # informal subdivision of a country without any political status
-    ("country_region", "region"),
-    # sovereign nations and their dependent territories, anything with an ISO-3166 code.
-    ("country", "country"),
-    ("country_code", "country"),
-    # currently only used for appending “West Indies” after the country name, a pattern
-    # frequently used in the English-speaking Caribbean e.g. “Jamaica, West Indies”
-    ("world_region", "region"),
-)
+POSTAL_TO_FTM = {
+    "full": "full",
+    "house": "remarks",  # venue/building names
+    "category": "keywords",
+    "near": "remarks",
+    "house_number": "remarks",
+    "road": "street",
+    "unit": "remarks",
+    "level": "remarks",
+    "staircase": "remarks",
+    "entrance": "remarks",
+    "po_box": "postOfficeBox",
+    "postcode": "postalCode",
+    "suburb": "remarks",
+    "city_district": "remarks",
+    "city": "city",
+    "island": "region",
+    "state_district": "region",
+    "state": "state",
+    "country_region": "region",
+    "country": "country",
+    "country_code": "country",
+    "world_region": "region",
+}
 
-POSTAL_KEYS = [m[0] for m in MAPPING]
-
-Values = list[str] | None
+POSTAL_KEYS = list(POSTAL_TO_FTM.keys())
 
 
-class PostalContext(TypedDict):
-    language: str | None
-    country: str | None
+class PostalAddress(BaseModel):
+    """Intermediate representation of a parsed address from libpostal."""
 
-
-class AddressBase(BaseModel):
-    def get_country(self) -> str:
-        return ";".join(self.country or [])
-
-    def get_first(self, attr, default: Any | None = None) -> str | None:
-        return get_first(getattr(self, attr, None), default)
-
-    def get_id(self, formatted_line: str | None = None) -> str:  # serves as cache key
-        formatted_line = formatted_line or self.get_formatted_line()
-        return make_address_id(formatted_line, self.get_first("country"))
-
-    def to_dict(self) -> dict[str, list[str]]:
-        return clean_dict(self.model_dump())
-
-
-class PostalAddressBase(AddressBase):
+    # libpostal fields
     full: Values = None
+    house: Values = None
+    category: Values = None
+    near: Values = None
+    house_number: Values = None
+    road: Values = None
+    unit: Values = None
+    level: Values = None
+    staircase: Values = None
+    entrance: Values = None
+    po_box: Values = None
+    postcode: Values = None
+    suburb: Values = None
+    city_district: Values = None
+    city: Values = None
+    island: Values = None
+    state_district: Values = None
+    state: Values = None
+    country_region: Values = None
+    country: Values = None
     country_code: Values = None
+    world_region: Values = None
 
     def __init__(self, **data):
         data["country"] = clean_country_names(data.get("country"))
         data["country_code"] = clean_country_codes(data.get("country"))
         super().__init__(**data)
+
+    def get_first(self, attr: str, default: Any | None = None) -> str | None:
+        return get_first(getattr(self, attr, None), default)
 
     def get_formatted_line(self) -> str:
         country = self.get_first("country")
@@ -193,13 +173,14 @@ class PostalAddressBase(AddressBase):
         }
         return format_address_line(data, country=country)
 
-    def to_dict(self) -> dict[str, str]:
+    def to_dict(self) -> dict[str, str | None]:
+        """Return single-valued dict (first value of each field)."""
         return clean_dict({k: get_first(v) for k, v in self.model_dump().items()})
 
     @classmethod
     def from_postal_result(
         cls, input_data: list[tuple[str, str]], **ctx: PostalContext
-    ) -> "PostalAddress":
+    ) -> Self:
         data = defaultdict(set)
         for value, key in input_data:
             data[key].add(value.title())
@@ -208,13 +189,13 @@ class PostalAddressBase(AddressBase):
         return cls(**data)
 
     @classmethod
-    def from_string(cls, value: str, **ctx: PostalContext) -> "PostalAddress":
+    def from_string(cls, value: str, **ctx: PostalContext) -> Self:
         value = clean_address(value)
         if USE_LIBPOSTAL:
             parse_address = lazy_import.lazy_callable("postal.parser.parse_address")
-            # postal screams if language or country is None
-            ctx = {k: ctx.get(k, "") or "" for k in ("language", "country")}
-            result = parse_address(value, **ctx)
+            # postal requires non-None values
+            postal_ctx = {k: ctx.get(k, "") or "" for k in ("language", "country")}
+            result = parse_address(value, **postal_ctx)
             if "full" not in dict(result):
                 result.append((value, "full"))
         else:
@@ -222,38 +203,68 @@ class PostalAddressBase(AddressBase):
         return cls.from_postal_result(result, **ctx)
 
 
-PostalAddress: PostalAddressBase = create_model(
-    "PostalAddress",
-    **{k: (Values, None) for k in POSTAL_KEYS},
-    __base__=PostalAddressBase,
-)
+class Address(BaseModel):
+    """FTM Address entity representation."""
 
-FtmAddressBase: AddressBase = create_model(
-    "FtmAddressBase",
-    **{p: (Values, None) for p in model.get("Address").properties},
-    __base__=AddressBase,
-)
+    # Core address fields
+    full: Values = None
+    remarks: Values = None
+    postOfficeBox: Values = None
+    street: Values = None
+    street2: Values = None
+    city: Values = None
+    postalCode: Values = None
+    region: Values = None
+    state: Values = None
+    latitude: Values = None
+    longitude: Values = None
+    country: Values = None
+    osmId: Values = None
+    googlePlaceId: Values = None
 
-
-class Address(FtmAddressBase):
+    # Private fields
     _id: str | None = None
     _postal: PostalAddress | None = None
+
+    def get_first(self, attr: str, default: Any | None = None) -> str | None:
+        return get_first(getattr(self, attr, None), default)
+
+    def get_country(self) -> str:
+        return ";".join(self.country or [])
+
+    def get_id(self) -> str:
+        if self._id:
+            return self._id
+        osm_id = self.get_first("osmId")
+        google_id = self.get_first("googlePlaceId")
+        if osm_id:
+            return f"addr-osm-{osm_id}"
+        if google_id:
+            return f"addr-google-{google_id}"
+        return make_address_id(self.get_formatted_line(), self.get_first("country"))
+
+    def get_formatted_line(self) -> str:
+        country = get_country_code(self.get_first("country"))
+        data = {
+            "attention": squash_spaces(
+                " ".join((self.get_first("summary", ""), " ".join(self.remarks or [])))
+            ),
+            "house": self.get_first("postOfficeBox"),
+            "road": (
+                self.get_first("road")
+                or self.get_first("street")
+                or self.get_first("full")
+            ),
+            "postcode": self.get_first("postalCode"),
+            "city": self.get_first("city"),
+            "state": self.get_first("state"),
+        }
+        return format_address_line(data, country=country)
 
     def to_dict(self) -> dict[str, list[str]]:
         data = clean_dict(self.model_dump())
         data["full"] = [self.get_formatted_line()]
         return data
-
-    def get_id(self) -> str:
-        # use place ids to generate ids
-        if self._id:
-            return self._id
-        osmId, googlePlaceId = self.get_first("osmId"), self.get_first("googlePlaceId")
-        if osmId:
-            return f"addr-osm-{osmId}"
-        if googlePlaceId:
-            return f"addr-google-{googlePlaceId}"
-        return super().get_id(self.get_formatted_line())
 
     def to_proxy(self) -> ValueEntity:
         proxy = make_entity(
@@ -266,46 +277,34 @@ class Address(FtmAddressBase):
         proxy.set("full", self.get_formatted_line())
         return proxy
 
-    def get_formatted_line(self) -> str:
-        country = get_country_code(self.get_first("country"))
-        data = {
-            "attention": collapse_spaces(
-                " ".join((self.get_first("summary", ""), " ".join(self.remarks or [])))
-            ),
-            "house": self.get_first("postOfficeBox"),
-            "road": self.get_first("road")
-            or self.get_first("street")
-            or self.get_first("full"),
-            "postcode": self.get_first("postalCode"),
-            "city": self.get_first("city"),
-            "state": self.get_first("state"),
-        }
-        return format_address_line(data, country=country)
-
     @classmethod
-    def from_postal(cls, input_data: PostalAddress, **ctx: PostalContext) -> "Address":
-        mapping = dict(MAPPING)
-        data = defaultdict(set)
+    def from_postal(cls, postal: PostalAddress, **ctx: PostalContext) -> Self:
+        """Convert PostalAddress to FTM Address using field mapping."""
+        data: dict[str, set] = defaultdict(set)
         data["country"].add(ctx.get("country"))
-        for key, values in input_data:
-            if key == "country_code":
-                key = "country"
+
+        for postal_key, ftm_key in POSTAL_TO_FTM.items():
+            if postal_key == "country_code":
+                ftm_key = "country"
+            values = getattr(postal, postal_key, None)
             if values is not None:
-                data[mapping[key]].update(values)
+                data[ftm_key].update(values)
+
         data["country"] = clean_country_codes(data["country"])
         instance = cls(**data)
-        instance._postal = input_data
+        instance._postal = postal
         return instance
 
     @classmethod
-    def from_string(cls, value: str, **ctx: PostalContext) -> "Address":
+    def from_string(cls, value: str, **ctx: PostalContext) -> Self:
         value = clean_address(value)
-        return cls.from_postal(PostalAddress.from_string(value, **ctx))
+        postal = PostalAddress.from_string(value, **ctx)
+        return cls.from_postal(postal, **ctx)
 
     @classmethod
-    def from_result(cls, result: GeocodingResult) -> "Address":
-        ctx = {"country": result.country}
-        address = cls.from_postal(PostalAddress.from_string(result.result_line, **ctx))
+    def from_result(cls, result: GeocodingResult) -> Self:
+        ctx: PostalContext = {"country": result.country, "language": None}
+        address = cls.from_string(result.result_line, **ctx)
         address.full = [result.result_line]
         address.longitude = [str(result.lon)]
         address.latitude = [str(result.lat)]
@@ -316,7 +315,7 @@ class Address(FtmAddressBase):
         return address
 
     @classmethod
-    def from_proxy(cls, proxy: EntityProxy) -> "Address":
+    def from_proxy(cls, proxy: EntityProxy) -> Self:
         data = proxy.to_dict()
         address = cls(**data["properties"])
         address._id = proxy.id
@@ -348,18 +347,22 @@ def get_components(data: AddressInput, **ctx: PostalContext) -> dict[str, str | 
     if isinstance(data, PostalAddress):
         return data.to_dict()
     if isinstance(data, Address):
-        return data._postal.to_dict()
+        if data._postal is not None:
+            return data._postal.to_dict()
+        # No postal data, parse from full address
+        full = data.get_first("full") or data.get_formatted_line()
+        return PostalAddress.from_string(full, **ctx).to_dict()
 
     if isinstance(data, str):
-        data = PostalAddress.from_string(data, **ctx)
+        postal = PostalAddress.from_string(data, **ctx)
     elif isinstance(data, EntityProxy):
-        data = PostalAddress.from_string(data.caption, **ctx)
+        postal = PostalAddress.from_string(data.caption, **ctx)
     elif isinstance(data, GeocodingResult):
-        data = PostalAddress.from_string(GeocodingResult.result_line, **ctx)
+        postal = PostalAddress.from_string(data.result_line, **ctx)
     else:
         raise NotImplementedError(data)
 
-    return data.to_dict()
+    return postal.to_dict()
 
 
 def get_formatted_line(data: AddressInput, **ctx: PostalContext) -> str:
@@ -377,5 +380,5 @@ def get_coords(data: AddressInput, **ctx: PostalContext) -> tuple[float, float] 
     address = get_address(data, **ctx)
     try:
         return float(get_first(address.longitude)), float(get_first(address.latitude))
-    except ValueError:
+    except (ValueError, TypeError):
         return None
