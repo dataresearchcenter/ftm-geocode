@@ -285,14 +285,14 @@ trio = ["trio (>=0.31.0) ; python_version < \"3.10\"", "trio (>=0.32.0) ; python
 
 [[package]]
 name = "anystore"
-version = "0.4.0"
+version = "0.4.3"
 description = "Store and cache things anywhere"
 optional = false
 python-versions = "<4,>=3.11"
 groups = ["main"]
 files = [
-    {file = "anystore-0.4.0-py3-none-any.whl", hash = "sha256:e152d7b4f244cbe37d40b3cdc75c9d65bf8f8395256b5d04243ed28fe28798a8"},
-    {file = "anystore-0.4.0.tar.gz", hash = "sha256:08b6240b62e989f770b7becc7c929fd22350e35399104ece44f295af37ac3d8d"},
+    {file = "anystore-0.4.3-py3-none-any.whl", hash = "sha256:b642fb64ed67084e0b190b2c3700d53ca902ceedf89c926848acd936e0a06132"},
+    {file = "anystore-0.4.3.tar.gz", hash = "sha256:bda81e8231908ba4dbecc6c40c2b5bf185548ebf4382c0c150d007c622dc0f4c"},
 ]
 
 [package.dependencies]
@@ -1022,13 +1022,13 @@ pyflakes = ">=3.4.0,<3.5.0"
 
 [[package]]
 name = "followthemoney"
-version = "4.3.4"
+version = "4.5.0"
 description = "A data model for anti corruption data modeling and analysis."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "followthemoney-4.3.4-py3-none-any.whl", hash = "sha256:50dc1669287c5c5105c6e12febac9630b14490ee4a3818144a415171d3826879"},
+    {file = "followthemoney-4.5.0-py3-none-any.whl", hash = "sha256:3cbd708f980e1bfe1ba9381817a8f539c9d02ce5becc3134fa360774002854e1"},
 ]
 
 [package.dependencies]
@@ -1044,9 +1044,9 @@ prefixdate = ">=0.5.0,<1.0.0"
 pydantic = ">=2.11.0,<3.0.0"
 pytz = ">=2021.1"
 pyyaml = ">=5.0.0,<7.0.0"
-rdflib = ">=6.2.0,<7.5.0"
+rdflib = ">=6.2.0,<7.6.0"
 requests = ">=2.21.0,<3.0.0"
-rigour = ">=1.4.0,<2.0.0"
+rigour = ">=1.6.0,<2.0.0"
 sqlalchemy = {version = ">=2.0.0,<3.0.0", extras = ["mypy"]}
 
 [package.extras]
@@ -1235,31 +1235,30 @@ tqdm = ["tqdm"]
 
 [[package]]
 name = "ftmq"
-version = "4.3.3"
+version = "4.5.0"
 description = "followthemoney query dsl and io helpers"
 optional = false
 python-versions = "<4,>=3.11"
 groups = ["main"]
 files = [
-    {file = "ftmq-4.3.3-py3-none-any.whl", hash = "sha256:e76569cf0632b8b2782e20ddc84e1779876c0dba43395fde206ce84c5fefae8f"},
-    {file = "ftmq-4.3.3.tar.gz", hash = "sha256:4f21a16774c40406ceceb44338e194379fded84473c76a4b239c2ee0b225c503"},
+    {file = "ftmq-4.5.0-py3-none-any.whl", hash = "sha256:3b03d3d7a74ef3f0e8ae6def011c1ec8c914886a6892e96bec19ef06dfb05d35"},
+    {file = "ftmq-4.5.0.tar.gz", hash = "sha256:0571f313d18a8a5ee926f7cdf5b90cda06edcce8e5544fdf58fe4b8316d6fe68"},
 ]
 
 [package.dependencies]
-anystore = ">=0.4.0,<0.5.0"
+anystore = ">=0.4.3,<0.5.0"
 click = ">=8.2.1,<9.0.0"
 click-default-group = ">=1.2.4,<2.0.0"
-followthemoney = ">=4.3.4,<5.0.0"
-nomenklatura = ">=4.3.1,<5.0.0"
+followthemoney = ">=4.5.0,<5.0.0"
+nomenklatura = ">=4.5.3,<5.0.0"
 orjson = ">=3.10.18,<4.0.0"
-pycountry = ">=24.6.1,<25.0.0"
 pydantic = ">=2.11.3,<3.0.0"
 pyicu = ">=2.15.2,<3.0.0"
-rigour = ">=1.5.0,<2.0.0"
+rigour = ">=1.6.1,<2.0.0"
 
 [package.extras]
 aleph = ["alephclient (>=2.6.0,<3.0.0)", "furl (>=2.1.4,<3.0.0)"]
-lake = ["deltalake (>=1.2.1,<2.0.0)", "duckdb (>=1.4.1,<2.0.0)", "pandas (>=2.3.3,<3.0.0)", "pyarrow (>=21.0.0,<22.0.0)"]
+lake = ["deltalake (>=1.3.2,<2.0.0)", "duckdb (>=1.4.3,<2.0.0)", "pandas (>=2.3.3,<3.0.0)", "pyarrow (>=22.0.0,<23.0.0)"]
 level = ["plyvel (>=1.5.1,<2.0.0)"]
 postgres = ["psycopg[pool] (>=3.2.9,<4.0.0)", "sqlalchemy (>=2.0.36,<3.0.0)"]
 redis = ["fakeredis (>=2.26.2,<3.0.0)", "redis (>=5.2.1,<6.0.0)"]
@@ -2685,24 +2684,24 @@ files = [
 
 [[package]]
 name = "nomenklatura"
-version = "4.3.2"
+version = "4.5.3"
 description = "Make record linkages in followthemoney data."
 optional = false
 python-versions = ">=3.11"
 groups = ["main"]
 files = [
-    {file = "nomenklatura-4.3.2-py3-none-any.whl", hash = "sha256:f429facbcf9b02742ef91dc8957729a96eb9b4484f0795d99aedbb8da878c7e0"},
+    {file = "nomenklatura-4.5.3-py3-none-any.whl", hash = "sha256:b0f7bde9308f3bee0884d287f0dee49d3c3c57b9772999d01614c5912b517037"},
 ]
 
 [package.dependencies]
 click = "<9.0.0"
 duckdb = ">=1.2.0,<2.0.0"
 fingerprints = ">=1.3.1,<2.0.0"
-followthemoney = ">=4.1.1,<5.0.0"
+followthemoney = ">=4.5.0,<5.0.0"
 lxml = ">4.0.0,<7.0.0"
 pydantic = ">2.0.0,<3.0.0"
 rich = ">=13.0.0,<15.0.0"
-rigour = ">=1.5.0,<2.0.0"
+rigour = ">=1.6.0,<2.0.0"
 scikit-learn = "1.7.2"
 shortuuid = ">=1.0.11,<2.0.0"
 sqlalchemy = ">=2.0.0"
@@ -3495,18 +3494,6 @@ files = [
 ]
 
 [[package]]
-name = "pycountry"
-version = "24.6.1"
-description = "ISO country, subdivision, language, currency and script definitions and their translations"
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-files = [
-    {file = "pycountry-24.6.1-py3-none-any.whl", hash = "sha256:f1a4fb391cd7214f8eefd39556d740adcc233c778a27f8942c8dca351d6ce06f"},
-    {file = "pycountry-24.6.1.tar.gz", hash = "sha256:b61b3faccea67f87d10c1f2b0fc0be714409e8fcdcc1315613174f6466c10221"},
-]
-
-[[package]]
 name = "pydantic"
 version = "2.12.5"
 description = "Data validation using Python type hints"
@@ -4030,6 +4017,13 @@ optional = false
 python-versions = ">=3.8"
 groups = ["main", "dev"]
 files = [
+    {file = "PyYAML-6.0.3-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:c2514fceb77bc5e7a2f7adfaa1feb2fb311607c9cb518dbc378688ec73d8292f"},
+    {file = "PyYAML-6.0.3-cp38-cp38-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:9c57bb8c96f6d1808c030b1687b9b5fb476abaa47f0db9c0101f5e9f394e97f4"},
+    {file = "PyYAML-6.0.3-cp38-cp38-manylinux2014_s390x.manylinux_2_17_s390x.manylinux_2_28_s390x.whl", hash = "sha256:efd7b85f94a6f21e4932043973a7ba2613b059c4a000551892ac9f1d11f5baf3"},
+    {file = "PyYAML-6.0.3-cp38-cp38-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:22ba7cfcad58ef3ecddc7ed1db3409af68d023b7f940da23c6c2a1890976eda6"},
+    {file = "PyYAML-6.0.3-cp38-cp38-musllinux_1_2_x86_64.whl", hash = "sha256:6344df0d5755a2c9a276d4473ae6b90647e216ab4757f8426893b5dd2ac3f369"},
+    {file = "PyYAML-6.0.3-cp38-cp38-win32.whl", hash = "sha256:3ff07ec89bae51176c0549bc4c63aa6202991da2d9a6129d7aef7f1407d3f295"},
+    {file = "PyYAML-6.0.3-cp38-cp38-win_amd64.whl", hash = "sha256:5cf4e27da7e3fbed4d6c3d8e797387aaad68102272f8f9752883bc32d61cb87b"},
     {file = "pyyaml-6.0.3-cp310-cp310-macosx_10_13_x86_64.whl", hash = "sha256:214ed4befebe12df36bcc8bc2b64b396ca31be9304b8f59e25c11cf94a4c033b"},
     {file = "pyyaml-6.0.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:02ea2dfa234451bbb8772601d7b8e426c2bfa197136796224e50e35a78777956"},
     {file = "pyyaml-6.0.3-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:b30236e45cf30d2b8e7b3e85881719e98507abed1011bf463a8fa23e9c3e98a8"},
@@ -4399,13 +4393,13 @@ jupyter = ["ipywidgets (>=7.5.1,<9)"]
 
 [[package]]
 name = "rigour"
-version = "1.5.0"
+version = "1.6.1"
 description = "Financial crime domain data validation and normalization library."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "rigour-1.5.0-py3-none-any.whl", hash = "sha256:20f58993fbe415607bc782950aba6c3eeb9967078615b5349cd2d3558636d21e"},
+    {file = "rigour-1.6.1-py3-none-any.whl", hash = "sha256:fce660d714d575b1c9f07b320f6c1595030d79bad5e4fbefb84cbc29f84a7638"},
 ]
 
 [package.dependencies]
