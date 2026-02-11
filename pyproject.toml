@@ -49,7 +49,7 @@ pytest-env = "^1.1.1"
 mkdocs = "^1.6.1"
 mkdocs-material = "^9.6.14"
 mkdocstrings-python = "^2.0.1"
-mkdocs-autorefs = "^1.4.2"
+mkdocs-autorefs = "^1.4.4"
 mkdocs-typer = "^0.0.3"
 
 [build-system]
