@@ -39,7 +39,7 @@ openaleph = ["openaleph-procrastinate (>=5.1.2,<6.0.0)"]
 pytest = "^9.0.2"
 pytest-cov = "^6.2.1"
 black = "^25.1.0"
-isort = "^6.0.1"
+isort = "^8.0.0"
 mypy = "^1.16.1"
 pre-commit = "^4.2.0"
 flake8 = "^7.2.0"
