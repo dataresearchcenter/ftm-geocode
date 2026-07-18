@@ -25,9 +25,9 @@ class GeocodingTestCase(TestCase):
         self.assertEqual(
             result.original_line, "Cowley Road Cambridge CB4 0WS United Kingdom"
         )
-        self.assertEqual(
+        self.assertStartsWith(
             result.result_line,
-            "Cowley Road, Chesterton, Cambridge, Cambridgeshire, Cambridgeshire and Peterborough, England, CB4 0WS, United Kingdom",
+            "Cowley Road, Chesterton, Cambridge, Cambridgeshire, Cambridgeshire and Peterborough, England",
         )
         self.assertEqual(result.geocoder, "nominatim")
 

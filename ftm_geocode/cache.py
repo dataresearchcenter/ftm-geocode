@@ -7,7 +7,7 @@ Uses anystore for flexible backend storage (filesystem, Redis, S3, etc.).
 from functools import cache
 
 from anystore.logging import get_logger
-from anystore.store import BaseStore
+from anystore.store import Store
 
 from ftm_geocode.parsing import normalize_for_cache
 from ftm_geocode.settings import Settings
@@ -34,7 +34,7 @@ def make_cache_key(value: str, use_cache: bool = True, **kwargs) -> str | None:
 
 
 @cache
-def get_cache() -> BaseStore:
+def get_cache() -> Store:
     """
     Get the configured cache store.
 
@@ -43,7 +43,6 @@ def get_cache() -> BaseStore:
     from ftm_geocode.model import GeocodingResult
 
     store = settings.store.to_store()
-    store.key_prefix = store.key_prefix or "ftm-geocode"
     store.model = GeocodingResult
     store.store_none_values = False
     return store
