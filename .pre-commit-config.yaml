@@ -16,7 +16,7 @@ repos:
       - id: debug-statements
       - id: end-of-file-fixer
       - id: mixed-line-ending
-        args: [ "--fix=lf" ]
+        args: ["--fix=lf"]
       - id: trailing-whitespace
 
   # - repo: https://github.com/asottile/pyupgrade
@@ -28,7 +28,7 @@ repos:
   - repo: https://github.com/MarcoGorelli/absolufy-imports
     rev: v0.3.1
     hooks:
-    - id: absolufy-imports
+      - id: absolufy-imports
 
   - repo: https://github.com/pycqa/isort
     rev: 7.0.0
@@ -45,8 +45,8 @@ repos:
     rev: v7.0.0
     hooks:
       - id: pyproject-flake8
-        additional_dependencies: [ flake8-bugbear ]
-        args: [ "--extend-ignore", "E203, E501" ]
+        additional_dependencies: [flake8-bugbear]
+        args: ["--extend-ignore", "E203, E501"]
         exclude: (test_[\w]+\.py|\.csv|\.json|\.lock)$
 
   - repo: https://github.com/codespell-project/codespell
@@ -72,3 +72,12 @@ repos:
     hooks:
       - id: poetry-check
       - id: poetry-lock
+
+  - repo: https://github.com/python-poetry/poetry-plugin-export
+    rev: 1.9.0
+    hooks:
+      - id: poetry-export
+        args: ["--without-hashes", "--with", "main", "-o", "requirements.txt"]
+      - id: poetry-export
+        args:
+          ["--without-hashes", "--only", "dev", "-o", "requirements-dev.txt"]
